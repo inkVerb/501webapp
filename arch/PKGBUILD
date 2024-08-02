@@ -6,6 +6,7 @@ url="https://github.com/inkVerb/501webapp"
 arch=('any')
 license=('GPL')
 depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'ffmpeg' 'lame' 'pandoc' 'texlive-core' 'texlive-latex' 'texlive-fontsrecommended' 'texlive-latexrecommended')  # Apache, not only Nginx, becuase we use rewrites
+makedepends=('git')
 source=('git+https://github.com/inkVerb/501.git')
 sha256sums=('SKIP')
 
