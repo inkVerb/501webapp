@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# exit from any errors
+set -e
+
+# Determine web user and folder
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="srv/www"
+elif [ -d "/var/www" ]; then
+  webdir="var/www"
+else
+  echo "No web folder found."
+  exit 1
+fi
+
+# git clone and move proper folder into place
+git clone https://github.com/inkVerb/501 /tmp/501
+mv /tmp/501/cms /${webdir}/501
+chown -R $webuser:$webuser /${webdir}/501
+rm -rf /tmp/501

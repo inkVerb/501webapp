@@ -1,0 +1,30 @@
+pkgname=501webapp
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="The VIP Code 501 CMS web app-as-package"
+url="https://github.com/inkVerb/501webapp"
+arch=('any')
+license=('GPL')
+depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'ffmpeg' 'lame' 'pandoc' 'texlive-core' 'texlive-latex' 'texlive-fontsrecommended' 'texlive-latexrecommended')  # Apache, not only Nginx, becuase we use rewrites
+source=('git+https://github.com/inkVerb/501.git')
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/501"
+}
+
+package() {
+  webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+  if [ -d "/srv/www" ]; then
+    webdir="srv/www"
+  elif [ -d "/var/www" ]; then
+    webdir="var/www"
+  else
+    echo "No web folder found."
+    exit 1
+  fi
+  cd "$srcdir/501"
+  install -d "$pkgdir/$webdir"
+  cp -r cms "$pkgdir/$webdir/501"
+  chown -R $webuser:$webuser "$pkgdir/$webdir/"
+}
