@@ -5,4 +5,5 @@ Priority: optional
 Architecture: all
 Maintainer: inkVerb <501webapp@inkisaverb.com>
 Depends: bash (>= 4.0), apache2, mariadb-server, php, libapache2-mod-php, php-mysql, libxml2-utils, xmlstarlet, imagemagick, ffmpeg, libmp3lame0, pandoc, texlive-latex-base, texlive-fonts-recommended, texlive-latex-recommended
+Build-Depends: git
 Description: The VIP Code 501 CMS web app-as-package

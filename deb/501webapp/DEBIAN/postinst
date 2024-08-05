@@ -3,6 +3,9 @@
 # exit from any errors
 set -e
 
+# Build (git clone)
+git clone https://github.com/inkVerb/501 /tmp/501
+
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
@@ -14,8 +17,7 @@ else
   exit 1
 fi
 
-# git clone and move proper folder into place
-git clone https://github.com/inkVerb/501 /tmp/501
+# Move proper folder into place
 mv /tmp/501/cms /${webdir}/501
 chown -R $webuser:$webuser /${webdir}/501
 rm -rf /tmp/501

@@ -8,6 +8,7 @@ URL:            https://github.com/inkVerb/501webapp
 
 BuildArch:      noarch
 Requires:       bash, httpd, php, mariadb, libxml2, xmlstarlet, imagemagick, ffmpeg, lame, pandoc, texlive-scheme-full
+PreReq:         git
 
 %description
 501 CMS web app created in VIP Code: Linux 501 PHP-XML Stack, in /srv/www/
@@ -19,7 +20,8 @@ Other commands could go here...
 ####################################################"
 
 %build
-# We could put some commands here if we needed to build from source
+# git clone
+git clone https://github.com/inkVerb/501 /tmp/501
 
 %install
 # Determine web user and folder
@@ -33,8 +35,7 @@ else
   exit 1
 fi
 
-# git clone and move proper folder into place
-git clone https://github.com/inkVerb/501 /tmp/501
+# Move proper folder into place
 mv /tmp/501/cms %{buildroot}/$webdir/501
 rm -rf /tmp/501
 

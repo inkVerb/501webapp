@@ -24,7 +24,7 @@ package() {
     echo "No web folder found."
     exit 1
   fi
-  cd "$srcdir/501"
+#  cd "$srcdir/501"  # redundant from build
   install -d "$pkgdir/$webdir"
   cp -r cms "$pkgdir/$webdir/501"
   chown -R $webuser:$webuser "$pkgdir/$webdir/"
