@@ -7,7 +7,7 @@ License:        GPL
 URL:            https://github.com/inkVerb/501webapp
 
 BuildArch:      noarch
-Requires:       bash, httpd, php, mariadb, libxml2, xmlstarlet, imagemagick, ffmpeg, lame, pandoc, texlive-scheme-full
+Requires:       bash, httpd, php, mariadb, libxml2, xmlstarlet, ImageMagick, ffmpeg, lame, pandoc, texlive-scheme-full
 PreReq:         git
 
 %description
@@ -20,31 +20,42 @@ Other commands could go here...
 ####################################################"
 
 %build
-# git clone
-git clone https://github.com/inkVerb/501 /tmp/501
+# We could put some commands here if we needed to build from source
 
 %install
+# Everything is done post-install
+
+%files
+# None, since we are doing everything under %post
+
+%post
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
-  webdir="srv/www"
+  webdir="/srv/www"
 elif [ -d "/var/www" ]; then
-  webdir="var/www"
+  webdir="/var/www"
 else
   echo "No web folder found."
   exit 1
 fi
 
+# git clone
+rm -rf /tmp/501
+git clone https://github.com/inkVerb/501 /tmp/501
+
 # Move proper folder into place
-mv /tmp/501/cms %{buildroot}/$webdir/501
+mv /tmp/501/cms ${webdir}/501
 rm -rf /tmp/501
 
-%files
-/$webdir/501
+# Set up the directory
+cd ${webdir}/501
+mv htaccess .htaccess
+mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
 
-%post
-chown -R $webuser:$webuser /$webdir/501
+chown -R $webuser:$webuser ${webdir}/501
 
 %changelog
-* Thu Jan 01 1970 Jesse <501webapp@inkisaverb.com> - 1.0.0-1
-- Something started
+-------------------------------------------------------------------
+Thu Jan 01 00:00:00 UTC 1970 501webapp@inkisaverb.com
+- Something started, probably with v1.0.0

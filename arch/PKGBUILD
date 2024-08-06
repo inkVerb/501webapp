@@ -5,7 +5,7 @@ pkgdesc="The VIP Code 501 CMS web app-as-package"
 url="https://github.com/inkVerb/501webapp"
 arch=('any')
 license=('GPL')
-depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'ffmpeg' 'lame' 'pandoc' 'texlive-core' 'texlive-latex' 'texlive-fontsrecommended' 'texlive-latexrecommended')  # Apache, not only Nginx, becuase we use rewrites
+depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'ffmpeg' 'lame' 'pandoc' 'texlive-core' 'texlive-latex' 'texlive-fontsrecommended' 'texlive-latexrecommended')  # Apache becuase we use rewrites
 makedepends=('git')
 source=('git+https://github.com/inkVerb/501.git')
 sha256sums=('SKIP')
@@ -24,8 +24,13 @@ package() {
     echo "No web folder found."
     exit 1
   fi
-#  cd "$srcdir/501"  # redundant from build
-  install -d "$pkgdir/$webdir"
-  cp -r cms "$pkgdir/$webdir/501"
-  chown -R $webuser:$webuser "$pkgdir/$webdir/"
+  cd "$srcdir/501"
+  install -d "${pkgdir}/${webdir}"
+  cp -r cms "${pkgdir}/${webdir}/501"
+
+  cd ${pkgdir}/${webdir}/501
+  mv htaccess .htaccess
+  mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
+
+  chown -R $webuser:$webuser "${pkgdir}/${webdir}/501"
 }

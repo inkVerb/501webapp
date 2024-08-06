@@ -4,20 +4,28 @@
 set -e
 
 # Build (git clone)
+rm -rf /tmp/501
 git clone https://github.com/inkVerb/501 /tmp/501
 
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
-  webdir="srv/www"
+  webdir="/srv/www"
 elif [ -d "/var/www" ]; then
-  webdir="var/www"
+  webdir="/var/www"
 else
   echo "No web folder found."
   exit 1
 fi
 
 # Move proper folder into place
-mv /tmp/501/cms /${webdir}/501
+mv /tmp/501/cms ${webdir}/501
 chown -R $webuser:$webuser /${webdir}/501
 rm -rf /tmp/501
+
+# Set up the directory
+cd ${webdir}/501
+mv htaccess .htaccess
+mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
+
+chown -R $webuser:$webuser ${webdir}/501

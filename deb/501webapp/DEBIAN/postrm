@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+# Determine web user and folder
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+else
+  echo "No web folder found."
+  exit 1
+fi
+
+if [ "$1" = "purge" ]; then
+    rm -rf ${webdir}/501
+fi
