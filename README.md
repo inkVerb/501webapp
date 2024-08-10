@@ -5,7 +5,7 @@
 This is a guide to create a web app-as-package installer for the 501 CMS from [Linux 501: PHP-XML Stack](https://github.com/inkVerb/VIP/blob/master/501/README.md) on:
 1. Arch (Manjaro, Black Arch, et al)
 2. Debian (Ubuntu, Kali, Mint, et al)
-3. RPM (OpenSUSE supported; *RedHat/CentOS distros not supported due to no `pandoc` package*)
+3. RPM (OpenSUSE supported; *RedHat/CentOS distros not supported due to missing `ImageMagick`, `ffmpeg`, `pandoc` & `texlive-scheme-full` packages*)
 
 - This installer sets up a web app from a `git` a repository
   - The `501` web app folder is set up according to the instructions in the folder's `README.md`
@@ -85,6 +85,7 @@ arch/
 | **`arch/PKGBUILD`** :
 
 ```
+# Maintainer: Ink Is A Verb <codes@inkisaverb.com>
 pkgname=501webapp
 pkgver=1.0.0
 pkgrel=1
@@ -190,7 +191,7 @@ Version: 1.0.0
 Section: web
 Priority: optional
 Architecture: all
-Maintainer: inkVerb <501webapp@inkisaverb.com>
+Maintainer: Ink Is A Verb <codes@inkisaverb.com>
 Depends: bash (>= 4.0), apache2, php, libxml2-utils, xmlstarlet, imagemagick, ffmpeg, libmp3lame0, pandoc, texlive-latex-base, texlive-fonts-recommended, texlive-latex-recommended
 Build-Depends: git
 Description: The VIP Code 501 CMS web app-as-package
@@ -384,7 +385,7 @@ chown -R $webuser:$webuser ${webdir}/501
 
 %changelog
 -------------------------------------------------------------------
-Thu Jan 01 00:00:00 UTC 1970 501webapp@inkisaverb.com
+Thu Jan 01 00:00:00 UTC 1970 codes@inkisaverb.com
 - Something started, probably with v1.0.0
 ```
 
@@ -408,18 +409,29 @@ sudo zypper install rpm-build rpmdevtools
   - These were not normally installed from [Linux 501](https://github.com/inkVerb/VIP/blob/master/501/README.md) because `rpm` architectures (RedHat/CentOS & OpenSUSE) are not supported
   - But, these are here for reference if needed
 
-| **Install dependencies on RedHat/CentOS** :$ (will break because `pandoc` is required, but not supported)
-
-```console
-sudo dnf update
-sudo dnf install httpd php mariadb libxml2 xmlstarlet imagemagick ffmpeg lame pandoc texlive-scheme-full
-```
-
 | **Install dependencies on OpenSUSE** :$
 
 ```console
 sudo zypper update
 sudo zypper install httpd php mariadb libxml2 xmlstarlet ImageMagick ffmpeg lame pandoc texlive-scheme-full
+```
+
+- ***RedHat/CentOS distros don't support all packages, so they need to be downloaded and installed with `rpm` separately***
+  - *[ImageMagick](https://imagemagick.org/script/download.php)*
+  - *[ffmpeg](https://src.fedoraproject.org/rpms/ffmpeg) (probably `x86_64`)*
+    - *[ffmpeg official](https://www.ffmpeg.org/download.html) (no `rpm` package from vendor's site)*
+  - *[pandoc](https://www.rpmfind.net/linux/rpm2html/search.php?query=pandoc)*
+    -  *[pandoc official](https://pandoc.org/installing.html) (no `rpm` package from vendor's site)*
+  - *[texlive-scheme-full](https://www.tug.org/texlive/)*
+  - *Or search [pkgs.org](https://pkgs.org/)*
+  - *Install with :$ `sudo rpm -i that-package-you-downloaded.rpm`*
+  - *Using these, the dependencies in the `.spec` file's `Requires:` line should be the same*
+
+| **Install dependencies on RedHat/CentOS** :$ (will break because `ImageMagick`, `ffmpeg`, `pandoc` & `texlive-scheme-full` are not supported)
+
+```console
+sudo dnf update
+sudo dnf install httpd php mariadb libxml2 xmlstarlet lame
 ```
 
 - Build package:
@@ -446,7 +458,7 @@ sudo rpm -i ~/rpmbuild/RPMS/noarch/501webapp-1.0.0-1.noarch.rpm  # Install the p
     - The `501` directory was copied after a `git clone` under `%post`
   - The `%changelog` is for OpenSUSE's `zypper`
     - RedHat/CentOS will want the date line like this:
-      - `* Thu Jan 01 1970 Jesse <501webapp@inkisaverb.com> - 1.0.0-1`
+      - `* Thu Jan 01 1970 Ink Is A Verb <codes@inkisaverb.com> - 1.0.0-1`
 
 | **Remove RedHat/CentOS package** :$ (optional)
 

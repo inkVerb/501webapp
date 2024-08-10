@@ -7,7 +7,7 @@ License:        GPL
 URL:            https://github.com/inkVerb/501webapp
 
 BuildArch:      noarch
-Requires:       bash, httpd, php, mariadb, libxml2, xmlstarlet, ImageMagick, ffmpeg, lame, pandoc, texlive-scheme-full
+Requires:       bash, httpd, php, mariadb, libxml2, xmlstarlet, lame, ImageMagick, ffmpeg, pandoc, texlive-scheme-full
 PreReq:         git
 
 %description
@@ -57,5 +57,5 @@ chown -R $webuser:$webuser ${webdir}/501
 
 %changelog
 -------------------------------------------------------------------
-Thu Jan 01 00:00:00 UTC 1970 501webapp@inkisaverb.com
+Thu Jan 01 00:00:00 UTC 1970 codes@inkisaverb.com
 - Something started, probably with v1.0.0
