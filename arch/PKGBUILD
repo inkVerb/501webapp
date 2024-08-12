@@ -1,6 +1,6 @@
 # Maintainer: Ink Is A Verb <codes@inkisaverb.com>
 pkgname=501webapp
-pkgver=1.0.0
+#pkgver=1.0.0  # Replace this with the pkgver() function, getting the version from git so this does not need to be re-written on every release
 pkgrel=1
 pkgdesc="The VIP Code 501 CMS web app-as-package"
 url="https://github.com/inkVerb/501webapp"
@@ -10,6 +10,17 @@ depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'f
 makedepends=('git')
 source=('git+https://github.com/inkVerb/501.git')
 sha256sums=('SKIP')
+
+# Dynamically set pkgver= variable based on unique source versioning
+# Can go anywhere in PKGBUILD file, but usually variables are first, then functions after
+pkgver() {
+  cd "$pkgname"
+    ( set -o pipefail
+      git describe --long --tags --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+      git describe --long --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+      printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+  )
+}
 
 build() {
   cd "$srcdir/501"

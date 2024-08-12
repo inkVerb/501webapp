@@ -69,6 +69,21 @@ rm -rf ~/rpmbuild
 ## Detailed instructions per architecture
 Instructions explain each in detail to create these packages from scratch...
 
+### Architecture Package Differences
+The Arch package builder is very different from Debian and RPM in its capability of building a package automatically
+
+This Arch `PKGBUILD` script will download and place all the files for PHP web app inside the actual package itself
+
+But, Debian and RPM packages require so much work, especially RPM, that it would be easier, faster, and have less risk of mistake to download the package and manually place the web app's files inside the package without automation
+
+Because of the Arch structure, we use a function for `pkgver=`, so that the `git` repo with the PHP web app will reflect the latest version on `git`, but this `PKGBUILD` file never needs to be updated
+
+*This gets into **[the Arch Way](https://wiki.archlinux.org/title/Arch_terminology#The_Arch_Way)** — the basic philosophy & [principles behind Arch Linux](https://wiki.archlinux.org/title/Arch_Linux#Principles) being easier to manage as a bleeding edge distro, which the [gophersay-git](https://github.com/JesseSteele/gophersay-git) package instructions discuss at greater length*
+
+If you want the PHP web app inside the Debian or RPM installers, you will need to do the heavy lifting yourself; you could write a script to automate the in-package wep app creation, but that would be even heavier lifting
+
+This page demonstrates simple automated scripts to create packages to install a web app from `git` automatically; Arch makes it simple to place that app inside the actual package, while the Debian and RPM packages—being more complex—are better off with a package that merely contains a script for the machine to download the web app from `git` directly
+
 ### I. Arch Linux Package (`501webapp-1.0.0-1-any.pkg.tar.zst`)
 *Arch package directory structure:*
 
@@ -87,7 +102,7 @@ arch/
 ```
 # Maintainer: Ink Is A Verb <codes@inkisaverb.com>
 pkgname=501webapp
-pkgver=1.0.0
+#pkgver=1.0.0  # Replace this with the pkgver() function, getting the version from git so this does not need to be re-written on every release
 pkgrel=1
 pkgdesc="The VIP Code 501 CMS web app-as-package"
 url="https://github.com/inkVerb/501webapp"
@@ -97,6 +112,17 @@ depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'f
 makedepends=('git')
 source=('git+https://github.com/inkVerb/501.git')
 sha256sums=('SKIP')
+
+# Dynamically set pkgver= variable based on unique source versioning
+# Can go anywhere in PKGBUILD file, but usually variables are first, then functions after
+pkgver() {
+  cd "$pkgname"
+    ( set -o pipefail
+      git describe --long --tags --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+      git describe --long --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+      printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+  )
+}
 
 build() {
   cd "$srcdir/501"
