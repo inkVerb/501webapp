@@ -102,7 +102,7 @@ arch/
 ```
 # Maintainer: Ink Is A Verb <codes@inkisaverb.com>
 pkgname=501webapp
-#pkgver=1.0.0  # Replace this with the pkgver() function, getting the version from git so this does not need to be re-written on every release
+pkgver=1  # Must not be empty (can be anything), later replaced with the pkgver() function, getting the version from git so this does not need to be re-written on every release
 pkgrel=1
 pkgdesc="The VIP Code 501 CMS web app-as-package"
 url="https://github.com/inkVerb/501webapp"
@@ -116,7 +116,7 @@ sha256sums=('SKIP')
 # Dynamically set pkgver= variable based on unique source versioning
 # Can go anywhere in PKGBUILD file, but usually variables are first, then functions after
 pkgver() {
-  cd "$pkgname"
+  cd "$pkgdir" # Same as "$srcdir/501"
     ( set -o pipefail
       git describe --long --tags --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
       git describe --long --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
@@ -125,7 +125,7 @@ pkgver() {
 }
 
 build() {
-  cd "$srcdir/501"
+  cd "$pkgdir" # Same as "$srcdir/501"
 }
 
 package() {
@@ -138,7 +138,7 @@ package() {
     echo "No web folder found."
     exit 1
   fi
-  cd "$srcdir/501"
+  cd "$pkgdir" # Same as "$srcdir/501"
   install -d "${pkgdir}/${webdir}"
   cp -r cms "${pkgdir}/${webdir}/501"
 
