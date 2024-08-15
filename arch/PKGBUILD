@@ -10,6 +10,9 @@ depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'f
 makedepends=('git')
 source=('git+https://github.com/inkVerb/501.git')
 sha256sums=('SKIP')
+install=('structure.install')
+# Preserve when uninstalled, delete when purged
+backup=("/etc/${pkgname}/in.conf.php" "/etc/${pkgname}/blog_db.sql")
 
 # Dynamically set pkgver= variable based on unique source versioning
 # Can go anywhere in PKGBUILD file, but usually variables are first, then functions after
@@ -27,6 +30,7 @@ build() {
 }
 
 package() {
+  # Figure out the web user
   webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
   if [ -d "/srv/www" ]; then
     webdir="srv/www"
@@ -36,13 +40,22 @@ package() {
     echo "No web folder found."
     exit 1
   fi
+
+  # Move files in place
   cd "$pkgdir" # Same as "$srcdir/501"
   install -d "${pkgdir}/${webdir}"
   cp -r cms "${pkgdir}/${webdir}/501"
-
+  
+  # Protect the config file
+  install -d "${pkgdir}/etc/${pkgname}"
+  mv "${pkgdir}/${webdir}/501/in.conf.php" "${pkgdir}/etc/${pkgname}/"
+  ln -s "/etc/${pkgname}/in.conf.php" "${pkgdir}/${webdir}/501/in.conf.php"
+  
+  # Web directory structure
   cd "${pkgdir}/${webdir}/501"
   mv htaccess .htaccess
   mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
 
+  # Own web directory
   chown -R $webuser:$webuser "${pkgdir}/${webdir}/501"
 }

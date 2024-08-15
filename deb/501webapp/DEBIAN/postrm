@@ -12,6 +12,11 @@ else
   exit 1
 fi
 
+# Drop database on purge
 if [ "$1" = "purge" ]; then
-    rm -rf ${webdir}/501
+  rm -rf ${webdir}/501
+  mariadb -e "
+  DROP USER IF EXISTS 'blog_db_user'@'localhost';
+  DROP DATABASE IF EXISTS blog_db;
+  FLUSH PRIVILEGES;"
 fi

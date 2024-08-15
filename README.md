@@ -17,6 +17,20 @@ This is a guide to create a web app-as-package installer for the 501 CMS from [L
 - In Debian & RPM, the files are not a part of the package, but are put in place after the install phase
   - The Debian package will remove the `501` web app folder only on purge
   - The RPM package will never remove the `501` web app folder
+- These packages are only a most-basic way to get a simple Git repo installed, updated, or removed with SQL database on a prepared server through the package manager
+- About updates
+  - Advantages of these packages:
+    - Works on a simple GitHub repo, using the most current commit, without needing to publish [releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)
+    - Whether used from the Arch AUR, local Arch, Debian, or RPM package, it will install the most current version of the [501](https://github.com/inkVerb/501) web app in the repo
+    - Can use the package manager to cleanly install or uninstall
+    - The SQL database is created by web app defaults, then backed up and removed on package install, update, remove, and purge operations
+    - Theoretically, this package could update the web app (via pachless refresh) by only changing the version in the package configs
+  - A web app should have an update patch workflow written into the app's server side language
+  - A web app production package should depend on GitHub [releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) as done in [`gophersay-git`](https://github.com/JesseSteele/gophersay-git)
+    - The proper way would be for the package to run the web updater with something like `su www -c 'php 501/updater.php`
+  - This has neither
+  - Only the Arch package checks for current versions (by Git commit, not release) and would list available updates
+    - Only by replaceing all files except `in.conf.php` (more of a refresh, not an update patch)
 
 Working examples for each already resides in this repository
 
@@ -91,7 +105,8 @@ This page demonstrates simple automated scripts to create packages to install a 
 
 ```
 arch/
-└─PKGBUILD
+├─ PKGBUILD
+└─ structure.install
 ```
 
 - Create directory: `arch`
@@ -112,6 +127,9 @@ depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'f
 makedepends=('git')
 source=('git+https://github.com/inkVerb/501.git')
 sha256sums=('SKIP')
+install=('structure.install')
+# Preserve when uninstalled, delete when purged
+backup=("/etc/${pkgname}/in.conf.php" "/etc/${pkgname}/blog_db.sql")
 
 # Dynamically set pkgver= variable based on unique source versioning
 # Can go anywhere in PKGBUILD file, but usually variables are first, then functions after
@@ -129,6 +147,7 @@ build() {
 }
 
 package() {
+  # Figure out the web user
   webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
   if [ -d "/srv/www" ]; then
     webdir="srv/www"
@@ -138,15 +157,74 @@ package() {
     echo "No web folder found."
     exit 1
   fi
+
+  # Move files in place
   cd "$pkgdir" # Same as "$srcdir/501"
   install -d "${pkgdir}/${webdir}"
   cp -r cms "${pkgdir}/${webdir}/501"
-
-  cd ${pkgdir}/${webdir}/501
+  
+  # Protect the config file
+  install -d "${pkgdir}/etc/${pkgname}"
+  mv "${pkgdir}/${webdir}/501/in.conf.php" "${pkgdir}/etc/${pkgname}/"
+  ln -s "/etc/${pkgname}/in.conf.php" "${pkgdir}/${webdir}/501/in.conf.php"
+  
+  # Web directory structure
+  cd "${pkgdir}/${webdir}/501"
   mv htaccess .htaccess
   mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
 
+  # Own web directory
   chown -R $webuser:$webuser "${pkgdir}/${webdir}/501"
+}
+```
+
+- In `arch/` create file: `structure.install`
+  - This file is referenced in `PKGBUILD` by `install=('structure.install')`, but could have any name with the extension `.install`
+  - Learn more about `.install` files on [Arch Wiki: PKGBUILD](https://wiki.archlinux.org/title/PKGBUILD#install)
+  - This leaves notes and unused, available functions from the [prototype demo file](https://gitlab.archlinux.org/pacman/pacman/raw/master/proto/proto.install)
+
+| **`arch/structure.install`** :
+
+```
+## arg 1:  the new package version
+pre_install() {
+  mariadb -e "
+  CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+  FLUSH PRIVILEGES;"
+}
+
+## arg 1:  the new package version
+post_install() {
+  rm -f /etc/501webapp/blog_db.sql
+  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+}
+
+## arg 1:  the new package version
+## arg 2:  the old package version
+pre_upgrade() {
+  rm -f /etc/$501webapp/blog_db.sql
+  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+}
+
+## arg 1:  the new package version
+## arg 2:  the old package version
+#post_upgrade() {
+	# do something here
+#}
+
+## arg 1:  the old package version
+pre_remove() {
+  rm -f /etc/501webapp/blog_db.sql
+  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+}
+
+## arg 1:  the old package version
+post_remove() {
+  mariadb -e "
+  DROP USER IF EXISTS 'blog_db_user'@'localhost';
+  DROP DATABASE IF EXISTS blog_db;
+  FLUSH PRIVILEGES;"
 }
 ```
 
@@ -200,10 +278,14 @@ sudo pacman -R 501webapp
 
 ```
 deb/
-└─501webapp/
-  └─DEBIAN/
-    ├─control
-    └─postinst
+└─ 501webapp/
+   └─ DEBIAN/
+      ├─ control
+      ├─ conffiles
+      ├─ preinst
+      ├─ postinst
+      ├─ prerm
+      └─ postrm
 ```
 
 - Create directories: `deb/501webapp/DEBIAN`
@@ -218,9 +300,36 @@ Section: web
 Priority: optional
 Architecture: all
 Maintainer: Ink Is A Verb <codes@inkisaverb.com>
-Depends: bash (>= 4.0), apache2, php, libxml2-utils, xmlstarlet, imagemagick, ffmpeg, libmp3lame0, pandoc, texlive-latex-base, texlive-fonts-recommended, texlive-latex-recommended
+Depends: bash (>= 4.0), apache2, php, mariadb-server, libxml2-utils, xmlstarlet, imagemagick, ffmpeg, libmp3lame0, pandoc, texlive-latex-base, texlive-fonts-recommended, texlive-latex-recommended
 Build-Depends: git
 Description: The VIP Code 501 CMS web app-as-package
+```
+
+- In `DEBIAN/` create file: `conffiles`
+
+| **`deb/501webapp/DEBIAN/conffiles`** :
+
+```
+/etc/501webapp/in.conf.php
+/etc/501webapp/blog_db.sql
+```
+
+- In `DEBIAN/` create file: `preinst`
+  - Make it executable with :$ `chmod +x DEBIAN/preinst`
+
+| **`deb/501webapp/DEBIAN/preinst`** :
+
+```
+#!/bin/bash
+
+# exit from any errors
+set -e
+
+# Create the database
+mariadb -e "
+CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+FLUSH PRIVILEGES;"
 ```
 
 - In `DEBIAN/` create file: `postinst`
@@ -250,16 +359,39 @@ else
 fi
 
 # Move proper folder into place
-mv /tmp/501/cms ${webdir}/501
-chown -R $webuser:$webuser /${webdir}/501
+mkdir -p ${webdir}/501
+mv /tmp/501/cms/* ${webdir}/501/
 rm -rf /tmp/501
 
-# Set up the directory
+# Protect the config file
+mv ${webdir}/501/in.conf.php /etc/501webapp/
+ln -s /etc/501webapp/in.conf.php ${webdir}/501/
+
+# Export the current database
+rm -f /etc/501webapp/blog_db.sql
+mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+
+# Web directory structure
 cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
 
+# Own web directory
 chown -R $webuser:$webuser ${webdir}/501
+```
+
+- In `DEBIAN/` create file: `prerm`
+  - Make it executable with :$ `chmod +x DEBIAN/prerm`
+
+| **`deb/501webapp/DEBIAN/prerm`** :
+
+```
+#!/bin/bash
+set -e
+
+# Dump database
+rm -f /etc/${pkgname}/blog_db.sql
+mariadbdump blog_db > /etc/${pkgname}/blog_db.sql
 ```
 
 - In `DEBIAN/` create file: `postrm`
@@ -282,8 +414,13 @@ else
   exit 1
 fi
 
+# Drop database on purge
 if [ "$1" = "purge" ]; then
-    rm -rf ${webdir}/501
+  rm -rf ${webdir}/501
+  mariadb -e "
+  DROP USER IF EXISTS 'blog_db_user'@'localhost';
+  DROP DATABASE IF EXISTS blog_db;
+  FLUSH PRIVILEGES;"
 fi
 ```
 
@@ -293,7 +430,7 @@ fi
 | **Install dependencies** :$
 
 ```console
-sudo apt-get install apache2 php libxml2-utils xmlstarlet imagemagick ffmpeg libmp3lame0 pandoc texlive-latex-base texlive-fonts-recommended texlive-latex-recommended
+sudo apt-get install apache2 php mariadb-server libxml2-utils xmlstarlet imagemagick ffmpeg libmp3lame0 pandoc texlive-latex-base texlive-fonts-recommended texlive-latex-recommended
 ```
 
 - Build package:
@@ -341,9 +478,9 @@ sudo apt-get remove --purge 501webapp
 
 ```
 rpm/
-└─rpmbuild/
-  └─SPECS/
-    └─501webapp.spec
+└─ rpmbuild/
+   └─ SPECS/
+      └─ 501webapp.spec
 ```
 
 - Create directories: `rpm/rpmbuild/SPECS`
@@ -361,7 +498,7 @@ License:        GPL
 URL:            https://github.com/inkVerb/501webapp
 
 BuildArch:      noarch
-Requires:       bash, httpd, php, mariadb, libxml2, xmlstarlet, ImageMagick, ffmpeg, lame, pandoc, texlive-scheme-full
+Requires:       bash, httpd, php, mariadb, libxml2, xmlstarlet, lame, ImageMagick, ffmpeg, pandoc, texlive-scheme-full
 PreReq:         git
 
 %description
@@ -376,11 +513,17 @@ Other commands could go here...
 %build
 # We could put some commands here if we needed to build from source
 
+%pre
+if [ $1 -eq 0 ]; then
+  # Create the database
+  mariadb -e "
+  CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+  FLUSH PRIVILEGES;"
+fi
+
 %install
 # Everything is done post-install
-
-%files
-# None, since we are doing everything under %post
 
 %post
 # Determine web user and folder
@@ -400,14 +543,50 @@ git clone https://github.com/inkVerb/501 /tmp/501
 
 # Move proper folder into place
 mv /tmp/501/cms ${webdir}/501
+mkdir -p /etc/501webapp
+mv ${webdir}/501/in.conf.php /etc/501webapp/
 rm -rf /tmp/501
 
-# Set up the directory
+# Export the current database
+rm -f /etc/501webapp/blog_db.sql
+mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+
+# Set up the web directory
 cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
-
 chown -R $webuser:$webuser ${webdir}/501
+
+%preun
+if [ $1 -eq 0 ]; then
+  rm -f /etc/501webapp/blog_db.sql
+  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+fi
+
+%postun
+if [ $1 -eq 0 ]; then
+  # Determine web user and folder
+  webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+  if [ -d "/srv/www" ]; then
+    webdir="/srv/www"
+  elif [ -d "/var/www" ]; then
+    webdir="/var/www"
+  else
+    echo "No web folder found, attempting uninstall anyway."
+  fi
+  rm -rf ${webdir}/501
+  mariadb -e "
+  DROP USER IF EXISTS 'blog_db_user'@'localhost';
+  DROP DATABASE IF EXISTS blog_db;
+  FLUSH PRIVILEGES;"
+fi
+
+%files
+# None, since we are doing everything under %post
+
+%config(noreplace)
+/etc/501webapp/in.conf.php
+/etc/501webapp/blog_db.sql
 
 %changelog
 -------------------------------------------------------------------
