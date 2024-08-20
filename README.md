@@ -187,25 +187,20 @@ package() {
 
 ```
 ## arg 1:  the new package version
-pre_install() {
-  mariadb -e "
-  CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-  GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
-  FLUSH PRIVILEGES;"
-}
+#pre_install() {
+	# do something here
+#}
 
 ## arg 1:  the new package version
 post_install() {
-  rm -f /etc/501webapp/blog_db.sql
-  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+  echo "See README.md inside the 501/ directory for further install instructions
 }
 
 ## arg 1:  the new package version
 ## arg 2:  the old package version
-pre_upgrade() {
-  rm -f /etc/$501webapp/blog_db.sql
-  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
-}
+#pre_upgrade() {
+	# do something here
+#}
 
 ## arg 1:  the new package version
 ## arg 2:  the old package version
@@ -214,18 +209,14 @@ pre_upgrade() {
 #}
 
 ## arg 1:  the old package version
-pre_remove() {
-  rm -f /etc/501webapp/blog_db.sql
-  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
-}
+#pre_remove() {
+	# do something here
+#}
 
 ## arg 1:  the old package version
-post_remove() {
-  mariadb -e "
-  DROP USER IF EXISTS 'blog_db_user'@'localhost';
-  DROP DATABASE IF EXISTS blog_db;
-  FLUSH PRIVILEGES;"
-}
+#post_remove() {
+	# do something here
+#}
 ```
 
 - You will need to have certain dependencies installed even before building the package
@@ -257,6 +248,10 @@ sudo pacman -U 501webapp-1.0.0-1-any.pkg.tar.zst
 ```
 
 - Special notes about Arch:
+  - Arch runs `PKGBUILD` and any `.install` scripts as `chroot`
+    - This is different from Debian or RPM
+    - So, the database can't be created, removed, backed up, or otherwise handled during install/update/remove operations
+    - This relates to the same `chroot` environment as in the [**`toplogger`**](https://github.com/inkVerb/toplogger) package
   - To resolve any dependencies, we use the `-s` flag with `makepkg` every time
     - This is necessary because this package has a long list of dependencies
   - The name of the directory containing the package files does not matter

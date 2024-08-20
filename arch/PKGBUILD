@@ -8,16 +8,27 @@ arch=('any')
 license=('GPL')
 depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'ffmpeg' 'lame' 'pandoc' 'texlive-core' 'texlive-latex' 'texlive-fontsrecommended' 'texlive-latexrecommended')  # Apache becuase we use rewrites
 makedepends=('git')
-source=('git+https://github.com/inkVerb/501.git')
+source=("git+https://github.com/inkVerb/501.git")
+#source=('git+https://github.com/inkVerb/501.git')
+  # Git will clone to 501webapp/arch/501 (native repo name, unchanged)
+#source=("$pkgname::git+https://github.com/inkVerb/501.git") # Same as source=("501webapp::git+https://github.com/inkVerb/501.git")
+  # Git will clone to 501webapp/arch/$pkgname = 501webapp/arch/src/501webapp (new repo name, changed to $pkgname = 501webapp)
+# Using pkgname=501webapp, regardless of source=, the Git repo will move to arch/pkg/$pkgname
+  # $srcdir # Git packaged moves into this: 501webapp/arch/src/
+  # $pkgdir # Same as 501webapp/arch/pkg/501webapp # Where the installed package will go for prep to install to the system
+
 sha256sums=('SKIP')
-install=('structure.install')
+install='structure.install'
 # Preserve when uninstalled, delete when purged
-backup=("/etc/${pkgname}/in.conf.php" "/etc/${pkgname}/blog_db.sql")
+backup=("etc/${pkgname}/in.conf.php" "etc/${pkgname}/blog_db.sql")
 
 # Dynamically set pkgver= variable based on unique source versioning
 # Can go anywhere in PKGBUILD file, but usually variables are first, then functions after
+
 pkgver() {
-  cd "$pkgdir" # Same as "$srcdir/501"
+  # PWD is 501webapp/arch/
+  # Git will clone repo "501" here
+  cd $srcdir # Same as 501webapp/arch/src/
     ( set -o pipefail
       git describe --long --tags --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
       git describe --long --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
@@ -26,7 +37,8 @@ pkgver() {
 }
 
 build() {
-  cd "$pkgdir" # Same as "$srcdir/501"
+  cd "$srcdir" # Same as 501webapp/arch/src/
+  # Normally we could do something here, but this is only an example
 }
 
 package() {
@@ -42,10 +54,10 @@ package() {
   fi
 
   # Move files in place
-  cd "$pkgdir" # Same as "$srcdir/501"
+  #cd "${srcdir}/501" # We NO LONGER here from the build() function, must cd here again
   install -d "${pkgdir}/${webdir}"
-  cp -r cms "${pkgdir}/${webdir}/501"
-  
+  cp -r "${srcdir}/501/cms" "${pkgdir}/${webdir}/501" # Using the final name 501 of where the webapp should reside
+
   # Protect the config file
   install -d "${pkgdir}/etc/${pkgname}"
   mv "${pkgdir}/${webdir}/501/in.conf.php" "${pkgdir}/etc/${pkgname}/"
