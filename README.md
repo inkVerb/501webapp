@@ -250,7 +250,7 @@ sudo pacman -U 501webapp-1.0.0-1-any.pkg.tar.zst
 - Special notes about Arch:
   - Arch runs `PKGBUILD` and any `.install` scripts as `chroot`
     - This is different from Debian or RPM
-    - So, the database can't be created, removed, backed up, or otherwise handled during install/update/remove operations
+    - Being done in `chroot`, [the SQL database can't be](https://serverfault.com/questions/217127/) created, removed, backed up, or otherwise handled during install/update/remove operations
     - This relates to the same `chroot` environment as in the [**`toplogger`**](https://github.com/inkVerb/toplogger) package
   - To resolve any dependencies, we use the `-s` flag with `makepkg` every time
     - This is necessary because this package has a long list of dependencies
