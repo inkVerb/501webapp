@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	git clone https://github.com/inkVerb/501
+
+override_dh_auto_install:
+	install -d $(DESTDIR)/var/501webapp
+	install -d $(DESTDIR)/etc/501webapp
+	mv 501/cms/in.conf.php $(DESTDIR)/etc/501webapp/
+	cp -r 501/cms $(DESTDIR)/var/www/501

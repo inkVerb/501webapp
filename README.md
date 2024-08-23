@@ -273,20 +273,30 @@ sudo pacman -R 501webapp
 
 ```
 deb/
-└─ 501webapp/
-   └─ DEBIAN/
+└─ build/
+   └─ debian/
+      ├─ source/
+      │  └─ format
       ├─ control
       ├─ conffiles
       ├─ preinst
       ├─ postinst
       ├─ prerm
-      └─ postrm
+      ├─ postrm
+      ├─ compat
+      ├─ changelog
+      ├─ copyright
+      ├─ watch
+      ├─ install
+      └─ rules
 ```
 
-- Create directories: `deb/501webapp/DEBIAN`
-- In `DEBIAN/` create file: `control`
+#### Create Mainainer Package Director Structure
 
-| **`deb/501webapp/DEBIAN/control`** :
+- Create directories: `deb/build/debian`
+- In `debian/` create file: `control`
+
+| **`deb/build/debian/control`** :
 
 ```
 Package: 501webapp
@@ -300,25 +310,38 @@ Build-Depends: git
 Description: The VIP Code 501 CMS web app-as-package
 ```
 
-- In `DEBIAN/` create file: `conffiles`
+- In `debian/` create file: `conffiles`
+  - This file technically isn't needed because all files in `etc/` are automatically included as `conffiles`; this is here for example
 
-| **`deb/501webapp/DEBIAN/conffiles`** :
+| **`deb/build/debian/conffiles`** :
 
 ```
 /etc/501webapp/in.conf.php
-/etc/501webapp/blog_db.sql
 ```
 
-- In `DEBIAN/` create file: `preinst`
-  - Make it executable with :$ `chmod +x DEBIAN/preinst`
+- In `debian/` create file: `preinst`
+  - Make it executable with :$ `chmod +x debian/preinst`
 
-| **`deb/501webapp/DEBIAN/preinst`** :
+| **`deb/build/debian/preinst`** :
 
 ```
 #!/bin/bash
 
 # exit from any errors
 set -e
+
+# Determine web user and folder & create any needed symlink
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+  mkdir -p "/var/"
+  ln -sfn "/srv/www" "/var/"
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+else
+  echo "No web folder found."
+  exit 1
+fi
 
 # Create the database
 mariadb -e "
@@ -327,10 +350,10 @@ GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'b
 FLUSH PRIVILEGES;"
 ```
 
-- In `DEBIAN/` create file: `postinst`
-  - Make it executable with :$ `chmod +x DEBIAN/postinst`
+- In `debian/` create file: `postinst`
+  - Make it executable with :$ `chmod +x debian/postinst`
 
-| **`deb/501webapp/DEBIAN/postinst`** :
+| **`deb/build/debian/postinst`** :
 
 ```
 #!/bin/bash
@@ -338,9 +361,10 @@ FLUSH PRIVILEGES;"
 # exit from any errors
 set -e
 
+#DEV remove, we are not downloading during install
 # Build (git clone)
-rm -rf /tmp/501
-git clone https://github.com/inkVerb/501 /tmp/501
+# rm -rf /tmp/501
+# git clone https://github.com/inkVerb/501 /tmp/501
 
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
@@ -353,18 +377,21 @@ else
   exit 1
 fi
 
+#DEV remove, we are not downloading during install
 # Move proper folder into place
-mkdir -p ${webdir}/501
-mv /tmp/501/cms/* ${webdir}/501/
-rm -rf /tmp/501
+# mkdir -p ${webdir}/501
+# mv /tmp/501/cms/* ${webdir}/501/
+# rm -rf /tmp/501
 
 # Protect the config file
-mv ${webdir}/501/in.conf.php /etc/501webapp/
-ln -s /etc/501webapp/in.conf.php ${webdir}/501/
+mv ${webdir}/501/in.conf.php /etc/${pkgname}/
+ln -s /etc/${pkgname}/in.conf.php ${webdir}/501/
 
 # Export the current database
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+mkdir -p /var/${pkgname}
+rm -f /var/${pkgname}/blog_db.sql
+mariadb-dump blog_db > /var/${pkgname}/blog_db.sql
+ln -sfn /var/${pkgname}/blog_db.sql /etc/${pkgname}/
 
 # Web directory structure
 cd ${webdir}/501
@@ -375,24 +402,26 @@ mkdir -p media/docs media/audio media/video media/images media/uploads media/ori
 chown -R $webuser:$webuser ${webdir}/501
 ```
 
-- In `DEBIAN/` create file: `prerm`
-  - Make it executable with :$ `chmod +x DEBIAN/prerm`
+- In `debian/` create file: `prerm`
+  - Make it executable with :$ `chmod +x debian/prerm`
 
-| **`deb/501webapp/DEBIAN/prerm`** :
+| **`deb/build/debian/prerm`** :
 
 ```
 #!/bin/bash
 set -e
 
 # Dump database
+mkdir -p /var/${pkgname}
 rm -f /etc/${pkgname}/blog_db.sql
-mariadbdump blog_db > /etc/${pkgname}/blog_db.sql
+mariadb-dump blog_db > /var/${pkgname}/blog_db.sql
+ln -sfn /var/${pkgname}/blog_db.sql /etc/${pkgname}/
 ```
 
-- In `DEBIAN/` create file: `postrm`
-  - Make it executable with :$ `chmod +x DEBIAN/postrm`
+- In `debian/` create file: `postrm`
+  - Make it executable with :$ `chmod +x debian/postrm`
 
-| **`deb/501webapp/DEBIAN/postrm`** :
+| **`deb/build/debian/postrm`** :
 
 ```
 #!/bin/bash
@@ -402,6 +431,8 @@ set -e
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
+  # Remove /var/www only if it is a symlink
+  [ -L "/var/www" ] && rm "/var/www"
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
 else
@@ -412,11 +443,135 @@ fi
 # Drop database on purge
 if [ "$1" = "purge" ]; then
   rm -rf ${webdir}/501
+  rm -rf /var/${pkgname}
   mariadb -e "
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
   DROP DATABASE IF EXISTS blog_db;
   FLUSH PRIVILEGES;"
 fi
+```
+
+- In `debian/` create file: `compat`
+
+| **`deb/build/debian/compat`** : (`debhelper` minimum version)
+
+```
+10
+```
+
+- In `debian/` create file: `changelog`
+
+| **`deb/build/debian/changelog`** : (optional, for listing changes)
+
+```
+501webapp (1.0.0-1) stable; urgency=low
+
+  * First release
+
+ -- Ink Is A Verb <codes@inkisaverb.com>  Thu, 1 Jan 1970 00:00:00 +0000
+```
+
+- In `debian/` create file: `copyright`
+
+| **`deb/build/debian/copyright`** : (optional, may be legally wise)
+
+```
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: 501webapp
+Source: https://github.com/inkverb/501webapp
+
+Files: *
+Copyright: 2024, Ink Is A Verb <codes@inkisaverb.com>
+License: GPL-3+
+```
+
+- In `debian/` create file: `watch`
+
+| **`deb/build/debian/watch`** : (dynamic version based on Git)
+
+```
+version=4
+https://github.com/inkVerb/501 .*/v?(\d\S*)\.tar\.gz
+```
+
+- In `debian/` create file: `rules`
+  - Make it executable with :$ `chmod +x debian/rules`
+
+| **`deb/build/debian/rules`** : (build, but no compiled binaries)
+
+```
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	git clone https://github.com/inkVerb/501
+
+override_dh_auto_install:
+	install -d $(DESTDIR)/var/501webapp
+	install -d $(DESTDIR)/etc/501webapp
+	mv 501/cms/in.conf.php $(DESTDIR)/etc/501webapp/
+	cp -r 501/cms $(DESTDIR)/var/www/501
+```
+
+- In `debian/` create file: `install`
+
+| **`deb/build/debian/install`** : (places files in the `.deb` directory structure)
+
+```
+501/cms/* /var/www/501
+501/cms/in.conf.php etc/501webapp/in.conf.php
+```
+
+- Create subdirectory: `deb/build/debian/source/`
+- In `debian/source/` create file: `format`
+
+| **`deb/build/debian/source/format`** : (source package format)
+
+```
+3.0 (quilt)
+```
+
+#### Build the Package Directories
+
+- Install the `dpkg-dev`, `debhelper` & `golang-go` packages
+
+| **Install Debian `dpkg-dev` package** :$
+
+```console
+sudo apt-get update
+sudo apt-get install dpkg-dev debhelper golang-go
+```
+
+- Prepare package builder:
+  - Navigate to directory `deb/build/`
+  - Run this, then the package builder & repo packages will be created:
+
+| **Prepare the Debian package builder** :$
+
+```console
+sudo dpkg-buildpackage -us -uc  # Create the package builder
+```
+
+- Note what just happened
+  - Everything just done to this point is called "**maintainer**" work in the Debian world
+  - Basic repo packages *and also* the package `DEBIAN/` builder structure were greated
+  - At this point, one could navigate up one directory to `deb/` and run `sudo dpkg -i 501webapp_1.0.0-1_all.deb` and the package would be installed, *but we won't do this*
+  - Once installed with `sudo dpkg -i` (later) this can be removed the standard way with `sudo apt-get remove 501webapp`
+  - This is the new, just-created directory structure for the standard Debian package builder:
+
+| **`deb/build/debian/`** :
+
+```
+deb/build/debian/
+          └─ gophersay/
+             ├─ DEBIAN/
+             │  ├─ control
+             │  └─ md5sums
+             └─ var/
+                └─ www/
+                   └─ 501/
 ```
 
 - You will need to have certain dependencies installed even before building the package

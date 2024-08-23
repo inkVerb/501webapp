@@ -3,9 +3,10 @@
 # exit from any errors
 set -e
 
+#DEV remove, we are not downloading during install
 # Build (git clone)
-rm -rf /tmp/501
-git clone https://github.com/inkVerb/501 /tmp/501
+# rm -rf /tmp/501
+# git clone https://github.com/inkVerb/501 /tmp/501
 
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
@@ -18,18 +19,21 @@ else
   exit 1
 fi
 
+#DEV remove, we are not downloading during install
 # Move proper folder into place
-mkdir -p ${webdir}/501
-mv /tmp/501/cms/* ${webdir}/501/
-rm -rf /tmp/501
+# mkdir -p ${webdir}/501
+# mv /tmp/501/cms/* ${webdir}/501/
+# rm -rf /tmp/501
 
 # Protect the config file
-mv ${webdir}/501/in.conf.php /etc/501webapp/
-ln -s /etc/501webapp/in.conf.php ${webdir}/501/
+mv ${webdir}/501/in.conf.php /etc/${pkgname}/
+ln -s /etc/${pkgname}/in.conf.php ${webdir}/501/
 
 # Export the current database
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+mkdir -p /var/${pkgname}
+rm -f /var/${pkgname}/blog_db.sql
+mariadb-dump blog_db > /var/${pkgname}/blog_db.sql
+ln -sfn /var/${pkgname}/blog_db.sql /etc/${pkgname}/
 
 # Web directory structure
 cd ${webdir}/501

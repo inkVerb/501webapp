@@ -5,6 +5,8 @@ set -e
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
+  # Remove /var/www only if it is a symlink
+  [ -L "/var/www" ] && rm "/var/www"
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
 else
@@ -15,6 +17,7 @@ fi
 # Drop database on purge
 if [ "$1" = "purge" ]; then
   rm -rf ${webdir}/501
+  rm -rf /var/${pkgname}
   mariadb -e "
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
   DROP DATABASE IF EXISTS blog_db;

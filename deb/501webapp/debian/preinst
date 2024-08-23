@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# exit from any errors
+set -e
+
+# Determine web user and folder & create any needed symlink
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+  mkdir -p "/var/"
+  ln -sfn "/srv/www" "/var/"
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+else
+  echo "No web folder found."
+  exit 1
+fi
+
+# Create the database
+mariadb -e "
+CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+FLUSH PRIVILEGES;"

@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+# Dump database
+mkdir -p /var/${pkgname}
+rm -f /etc/${pkgname}/blog_db.sql
+mariadb-dump blog_db > /var/${pkgname}/blog_db.sql
+ln -sfn /var/${pkgname}/blog_db.sql /etc/${pkgname}/
