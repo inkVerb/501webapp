@@ -535,13 +535,13 @@ override_dh_auto_install:
 
 #### Build the Package Directories
 
-- Install the `dpkg-dev`, `debhelper` & `golang-go` packages
+- Install the `dpkg-dev` & `debhelper` packages
 
 | **Install Debian `dpkg-dev` package** :$
 
 ```console
 sudo apt-get update
-sudo apt-get install dpkg-dev debhelper golang-go
+sudo apt-get install dpkg-dev debhelper
 ```
 
 - Prepare package builder:
