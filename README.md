@@ -48,7 +48,11 @@ makepkg -si
 
 ```console
 git clone https://github.com/inkVerb/501webapp.git
-cd 501webapp/deb
+sudo apt-get update
+sudo apt-get install dpkg-dev debhelper
+cd 501webapp/deb/build
+sudo dpkg-buildpackage -us -uc
+cd debian
 dpkg-deb --build 501webapp
 sudo dpkg -i 501webapp.deb
 ```
@@ -275,8 +279,6 @@ sudo pacman -R 501webapp
 deb/
 └─ build/
    └─ debian/
-      ├─ source/
-      │  └─ format
       ├─ control
       ├─ conffiles
       ├─ preinst
@@ -286,27 +288,30 @@ deb/
       ├─ compat
       ├─ changelog
       ├─ copyright
-      ├─ watch
       ├─ install
       └─ rules
 ```
 
 #### Create Mainainer Package Director Structure
-
 - Create directories: `deb/build/debian`
 - In `debian/` create file: `control`
 
 | **`deb/build/debian/control`** :
 
 ```
-Package: 501webapp
-Version: 1.0.0
+Source: 501webapp
 Section: web
 Priority: optional
-Architecture: all
 Maintainer: Ink Is A Verb <codes@inkisaverb.com>
+Homepage: https://github.com/inkverb/501webapp
+Vcs-Git: https://github.com/inkverb/501
+Build-Depends: debhelper (>= 10)
+Standards-Version: 3.9.6
+
+Package: 501webapp
+#Version: 1.0.0 # No! Inherited from `debian/changelog`
+Architecture: all
 Depends: bash (>= 4.0), apache2, php, mariadb-server, libxml2-utils, xmlstarlet, imagemagick, ffmpeg, libmp3lame0, pandoc, texlive-latex-base, texlive-fonts-recommended, texlive-latex-recommended
-Build-Depends: git
 Description: The VIP Code 501 CMS web app-as-package
 ```
 
@@ -361,11 +366,6 @@ FLUSH PRIVILEGES;"
 # exit from any errors
 set -e
 
-#DEV remove, we are not downloading during install
-# Build (git clone)
-# rm -rf /tmp/501
-# git clone https://github.com/inkVerb/501 /tmp/501
-
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
@@ -377,21 +377,11 @@ else
   exit 1
 fi
 
-#DEV remove, we are not downloading during install
-# Move proper folder into place
-# mkdir -p ${webdir}/501
-# mv /tmp/501/cms/* ${webdir}/501/
-# rm -rf /tmp/501
-
-# Protect the config file
-mv ${webdir}/501/in.conf.php /etc/${pkgname}/
-ln -s /etc/${pkgname}/in.conf.php ${webdir}/501/
-
 # Export the current database
-mkdir -p /var/${pkgname}
-rm -f /var/${pkgname}/blog_db.sql
-mariadb-dump blog_db > /var/${pkgname}/blog_db.sql
-ln -sfn /var/${pkgname}/blog_db.sql /etc/${pkgname}/
+mkdir -p /var/501webapp
+rm -f /var/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
+ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 
 # Web directory structure
 cd ${webdir}/501
@@ -412,10 +402,10 @@ chown -R $webuser:$webuser ${webdir}/501
 set -e
 
 # Dump database
-mkdir -p /var/${pkgname}
-rm -f /etc/${pkgname}/blog_db.sql
-mariadb-dump blog_db > /var/${pkgname}/blog_db.sql
-ln -sfn /var/${pkgname}/blog_db.sql /etc/${pkgname}/
+mkdir -p /var/501webapp
+rm -f /var/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
+ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 ```
 
 - In `debian/` create file: `postrm`
@@ -429,11 +419,11 @@ set -e
 
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
-if [ -d "/srv/www" ]; then
+if [ -d "/srv/www/501" ]; then
   webdir="/srv/www"
   # Remove /var/www only if it is a symlink
   [ -L "/var/www" ] && rm "/var/www"
-elif [ -d "/var/www" ]; then
+elif [ -d "/var/www/501" ]; then
   webdir="/var/www"
 else
   echo "No web folder found."
@@ -443,7 +433,8 @@ fi
 # Drop database on purge
 if [ "$1" = "purge" ]; then
   rm -rf ${webdir}/501
-  rm -rf /var/${pkgname}
+  rm -rf /etc/501webapp
+  rm -rf /var/501webapp
   mariadb -e "
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
   DROP DATABASE IF EXISTS blog_db;
@@ -485,15 +476,6 @@ Copyright: 2024, Ink Is A Verb <codes@inkisaverb.com>
 License: GPL-3+
 ```
 
-- In `debian/` create file: `watch`
-
-| **`deb/build/debian/watch`** : (dynamic version based on Git)
-
-```
-version=4
-https://github.com/inkVerb/501 .*/v?(\d\S*)\.tar\.gz
-```
-
 - In `debian/` create file: `rules`
   - Make it executable with :$ `chmod +x debian/rules`
 
@@ -507,12 +489,6 @@ https://github.com/inkVerb/501 .*/v?(\d\S*)\.tar\.gz
 
 override_dh_auto_build:
 	git clone https://github.com/inkVerb/501
-
-override_dh_auto_install:
-	install -d $(DESTDIR)/var/501webapp
-	install -d $(DESTDIR)/etc/501webapp
-	mv 501/cms/in.conf.php $(DESTDIR)/etc/501webapp/
-	cp -r 501/cms $(DESTDIR)/var/www/501
 ```
 
 - In `debian/` create file: `install`
@@ -520,21 +496,11 @@ override_dh_auto_install:
 | **`deb/build/debian/install`** : (places files in the `.deb` directory structure)
 
 ```
-501/cms/* /var/www/501
-501/cms/in.conf.php etc/501webapp/in.conf.php
-```
-
-- Create subdirectory: `deb/build/debian/source/`
-- In `debian/source/` create file: `format`
-
-| **`deb/build/debian/source/format`** : (source package format)
-
-```
-3.0 (quilt)
+501/cms/* var/www/501/
+501/cms/in.conf.php etc/501webapp/
 ```
 
 #### Build the Package Directories
-
 - Install the `dpkg-dev` & `debhelper` packages
 
 | **Install Debian `dpkg-dev` package** :$
@@ -565,13 +531,28 @@ sudo dpkg-buildpackage -us -uc  # Create the package builder
 
 ```
 deb/build/debian/
-          └─ gophersay/
+          └─ 501webapp/
              ├─ DEBIAN/
              │  ├─ control
-             │  └─ md5sums
+             │  ├─ conffiles
+             │  ├─ md5sums
+             │  ├─ preinst
+             │  ├─ postinst
+             │  ├─ prerm
+             │  └─ postrm
+             ├─ etc/
+             │  └─ 501webapp/
+             │     └─ in.conf.php
+             ├─ usr/
+             │  └─ share/
+             │     └─ doc/
+             │        └─ 501webapp/
+             │           ├─ changelog.Debian.gz
+             │           └─ copyright
              └─ var/
                 └─ www/
                    └─ 501/
+                      └─ [ files from 501/cms/* ]
 ```
 
 - You will need to have certain dependencies installed even before building the package
@@ -584,7 +565,7 @@ sudo apt-get install apache2 php mariadb-server libxml2-utils xmlstarlet imagema
 ```
 
 - Build package:
-  - Navigate to directory `deb/`
+  - Navigate to directory `deb/debian/`
   - Run this, then the package will be built, then installed:
 
 | **Build, *then* install Debian package** :$

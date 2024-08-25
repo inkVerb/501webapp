@@ -1,2 +1,2 @@
-501/cms/* /var/www/501
-501/cms/in.conf.php etc/501webapp/in.conf.php
+501/cms/* var/www/501/
+501/cms/in.conf.php etc/501webapp/
