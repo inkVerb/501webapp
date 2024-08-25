@@ -3,7 +3,7 @@
 # exit from any errors
 set -e
 
-# Determine web user and folder & create any needed symlink
+# Verify web user and folder & create any needed symlink
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
