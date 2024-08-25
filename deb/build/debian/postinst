@@ -15,16 +15,10 @@ else
 fi
 
 # Export the current database
-#mkdir -p /var/501webapp
-#rm -f /var/501webapp/blog_db.sql
-#mariadb-dump blog_db > /var/501webapp/blog_db.sql
-#ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
-
-# Export the current database
-mkdir -p /var/${pkgname}
-rm -f /var/${pkgname}/blog_db.sql
-mariadb-dump blog_db > /var/${pkgname}/blog_db.sql
-ln -sfn /var/${pkgname}/blog_db.sql /etc/${pkgname}/
+mkdir -p /var/501webapp
+rm -f /var/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
+ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 
 # Web directory structure
 cd ${webdir}/501

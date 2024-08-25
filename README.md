@@ -46,10 +46,15 @@ makepkg -si
 
 | **Debian** :$ (& Ubuntu, Kali, Mint)
 
+(install build tools if not already)
+
 ```console
-git clone https://github.com/inkVerb/501webapp.git
 sudo apt-get update
 sudo apt-get install dpkg-dev debhelper
+```
+
+```console
+git clone https://github.com/inkVerb/501webapp.git
 cd 501webapp/deb/build
 sudo dpkg-buildpackage -us -uc
 cd debian
@@ -59,10 +64,15 @@ sudo dpkg -i 501webapp.deb
 
 | **RedHat/CentOS** :$ (& Fedora)
 
+(install build tools if not already)
+
 ```console
-git clone https://github.com/inkVerb/501webapp.git
 sudo dnf update
 sudo dnf install rpm-build rpmdevtools
+```
+
+```console
+git clone https://github.com/inkVerb/501webapp.git
 cp -rf 501webapp/rpm/rpmbuild ~/
 rpmbuild -ba ~/rpmbuild/SPECS/501webapp.spec
 ls ~/rpmbuild/RPMS/noarch/
@@ -72,11 +82,16 @@ rm -rf ~/rpmbuild
 
 | **OpenSUSE** :$ (& Tumbleweed)
 
+(install build tools if not already)
+
+```console
+sudo zypper update
+sudo zypper install rpm-build rpmdevtools
+```
+
 ```console
 git clone https://github.com/inkVerb/501webapp.git
 cd 501webapp/rpm
-sudo zypper update
-sudo zypper install rpm-build rpmdevtools
 cp -r rpmbuild ~/
 rpmbuild -ba ~/rpmbuild/SPECS/501webapp.spec
 ls ~/rpmbuild/RPMS/noarch/
@@ -221,6 +236,14 @@ post_install() {
 #post_remove() {
 	# do something here
 #}
+```
+
+...the above `structure.install` file would work just the same if it only contained...
+
+```
+post_install() {
+  echo "See README.md inside the 501/ directory for further install instructions
+}
 ```
 
 - You will need to have certain dependencies installed even before building the package
