@@ -27,3 +27,9 @@ mkdir -p media/docs media/audio media/video media/images media/uploads media/ori
 
 # Own web directory
 chown -R $webuser:$webuser ${webdir}/501
+
+# Create the database
+mariadb -e "
+CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+FLUSH PRIVILEGES;"

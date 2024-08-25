@@ -12,12 +12,6 @@ if [ -d "/srv/www" ]; then
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
 else
-  echo "No web folder found."
-  exit 1
+  mkdir -p "/var/www"
+  webdir="/var/www"
 fi
-
-# Create the database
-mariadb -e "
-CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
-FLUSH PRIVILEGES;"

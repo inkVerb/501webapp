@@ -367,19 +367,14 @@ if [ -d "/srv/www" ]; then
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
 else
-  echo "No web folder found."
-  exit 1
+  mkdir -p "/var/www"
+  webdir="/var/www"
 fi
-
-# Create the database
-mariadb -e "
-CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
-FLUSH PRIVILEGES;"
 ```
 
 - In `debian/` create file: `postinst`
   - Make it executable with :$ `chmod +x debian/postinst`
+  - We want the database and web directory addressed here, *after* the dependency checks during install
 
 | **`deb/build/debian/postinst`** :
 
@@ -413,6 +408,12 @@ mkdir -p media/docs media/audio media/video media/images media/uploads media/ori
 
 # Own web directory
 chown -R $webuser:$webuser ${webdir}/501
+
+# Create the database
+mariadb -e "
+CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+FLUSH PRIVILEGES;"
 ```
 
 - In `debian/` create file: `prerm`
@@ -450,7 +451,7 @@ elif [ -d "/var/www/501" ]; then
   webdir="/var/www"
 else
   echo "No web folder found."
-  exit 1
+  exit 0
 fi
 
 # Drop database on purge

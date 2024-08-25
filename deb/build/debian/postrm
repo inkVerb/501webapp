@@ -11,7 +11,7 @@ elif [ -d "/var/www/501" ]; then
   webdir="/var/www"
 else
   echo "No web folder found."
-  exit 1
+  exit 0
 fi
 
 # Drop database on purge
