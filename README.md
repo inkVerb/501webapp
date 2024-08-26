@@ -373,7 +373,7 @@ Description: The VIP Code 501 CMS web app-as-package
 # exit from any errors
 set -e
 
-# Determine web user and folder & create any needed symlink
+# Verify web user and folder & create any needed symlink
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
@@ -385,6 +385,9 @@ else
   mkdir -p "/var/www"
   webdir="/var/www"
 fi
+
+# Clear any existing conf link in /var/www
+rm -f ${webdir}/501/in.conf.php
 ```
 
 - In `debian/` create file: `postinst`
@@ -420,6 +423,10 @@ ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
+
+# Re-link conf file from /etc
+rm -f ${webdir}/501/in.conf.php
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
 
 # Own web directory
 chown -R $webuser:$webuser ${webdir}/501
@@ -623,6 +630,10 @@ sudo dpkg -i 501webapp.deb  # Install the package
     - The web app folder `/var/www/501/` remains after package removal, only deleted with a purge (which uses `postrm`)
     - That folder and its files do not reside inside the package, so they are not included in a remove operation, but only are removed with `--purge`-activated scripts
     - The workflow must be carefully selected; one error in an `install` or `remove` operation and the package will `exit` unfinished, then the system is stuck with a problem
+      - Install will run the dependency checks via `Depends:` in `control`
+      - Scripts `preinst` & `prerm` run *before* the install/uninstall
+      - Scripts `postinst` & `postrm` run *after* the install/uninstall
+      - Do things in those scripts before or after in the proper stack of dependency
     - If written wrong...
       - These scripts can cause serious errors, they can delete the `/var` or `/etc` directories, or do catastrophic damage
       - A mild `E:` error may be fixable with this :$
@@ -707,6 +718,9 @@ else
   webdir="/var/www"
 fi
 
+# Clear any existing conf link in /var/www
+rm -f ${webdir}/501/in.conf.php
+
 %install
 # Everything is done post-install
 
@@ -732,12 +746,6 @@ mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
 rm -rf /tmp/501
 
-# Create the database
-mariadb -e "
-CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
-FLUSH PRIVILEGES;"
-
 # Export the current database (such as upgrade)
 mkdir -p /var/501webapp
 rm -f /etc/501webapp/blog_db.sql
@@ -747,7 +755,19 @@ mariadb-dump blog_db > /var/501webapp/blog_db.sql
 cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
+
+# Re-link conf file from /etc
+rm -f ${webdir}/501/in.conf.php
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
+
+# Own web directory
 chown -R $webuser:$webuser ${webdir}/501
+
+# Create the database
+mariadb -e "
+CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+FLUSH PRIVILEGES;"
 
 %preun
 if [ $1 -eq 0 ]; then

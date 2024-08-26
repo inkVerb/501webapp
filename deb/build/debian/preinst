@@ -15,3 +15,6 @@ else
   mkdir -p "/var/www"
   webdir="/var/www"
 fi
+
+# Clear any existing conf link in /var/www
+rm -f ${webdir}/501/in.conf.php

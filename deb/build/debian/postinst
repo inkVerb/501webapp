@@ -25,6 +25,10 @@ cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
 
+# Re-link conf file from /etc
+rm -f ${webdir}/501/in.conf.php
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
+
 # Own web directory
 chown -R $webuser:$webuser ${webdir}/501
 
