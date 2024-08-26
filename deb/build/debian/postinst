@@ -14,6 +14,9 @@ else
   exit 1
 fi
 
+# Make sure the SQL server is running
+systemctl start mariadb
+
 # Export the current database
 mkdir -p /var/501webapp
 rm -f /var/501webapp/blog_db.sql

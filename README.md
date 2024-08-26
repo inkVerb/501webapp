@@ -413,6 +413,9 @@ else
   exit 1
 fi
 
+# Make sure the SQL server is running
+systemctl start mariadb
+
 # Export the current database
 mkdir -p /var/501webapp
 rm -f /var/501webapp/blog_db.sql
@@ -472,6 +475,9 @@ else
   echo "No web folder found."
   exit 0
 fi
+
+# Make sure the SQL server is running
+systemctl start mariadb
 
 # Drop database on purge
 if [ "$1" = "purge" ]; then
@@ -749,11 +755,6 @@ mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
 rm -rf /tmp/501
 
-# Export the current database (such as upgrade)
-mkdir -p /var/501webapp
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /var/501webapp/blog_db.sql
-
 # Set up the web directory
 cd ${webdir}/501
 mv htaccess .htaccess
@@ -771,12 +772,19 @@ fi
 # Own web directory
 chown -R $webuser:$webuser ${webdir}/501
 
-# Create the database
+# Make sure the SQL server is running
 systemctl start mariadb
+
+# Create the database
 mariadb -e "
 CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
 FLUSH PRIVILEGES;"
+
+# Export the current database (such as upgrade)
+mkdir -p /var/501webapp
+rm -f /etc/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
 
 %preun
 if [ $1 -eq 0 ]; then
@@ -799,6 +807,8 @@ if [ $1 -eq 0 ]; then
   rm -rf ${webdir}/501
   rm -rf /etc/501webapp
   rm -rf /var/501webapp
+
+  # Make sure the SQL server is running before dropping database
   systemctl start mariadb
   mariadb -e "
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
