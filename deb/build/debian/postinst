@@ -3,10 +3,6 @@
 # exit from any errors
 set -e
 
-# Build (git clone)
-rm -rf /tmp/501
-git clone https://github.com/inkVerb/501 /tmp/501
-
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
@@ -18,23 +14,29 @@ else
   exit 1
 fi
 
-# Move proper folder into place
-mkdir -p ${webdir}/501
-mv /tmp/501/cms/* ${webdir}/501/
-rm -rf /tmp/501
-
-# Protect the config file
-mv ${webdir}/501/in.conf.php /etc/501webapp/
-ln -s /etc/501webapp/in.conf.php ${webdir}/501/
+# Make sure the SQL server is running
+systemctl start mariadb
 
 # Export the current database
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+mkdir -p /var/501webapp
+rm -f /var/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
+ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 
 # Web directory structure
 cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
 
+# Re-link conf file from /etc
+rm -f ${webdir}/501/in.conf.php
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
+
 # Own web directory
 chown -R $webuser:$webuser ${webdir}/501
+
+# Create the database
+mariadb -e "
+CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+FLUSH PRIVILEGES;"

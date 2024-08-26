@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+# Example of something
+echo "Removing the 501 web app..."

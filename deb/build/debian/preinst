@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# exit from any errors
+set -e
+
+# Verify web user and folder & create any needed symlink
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+  mkdir -p "/var/"
+  ln -sfn "/srv/www" "/var/"
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+else
+  mkdir -p "/var/www"
+  webdir="/var/www"
+fi
+
+# Clear any existing conf link in /var/www
+rm -f ${webdir}/501/in.conf.php

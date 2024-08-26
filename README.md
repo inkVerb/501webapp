@@ -46,19 +46,41 @@ makepkg -si
 
 | **Debian** :$ (& Ubuntu, Kali, Mint)
 
+(install build tools if not already)
+
+```console
+sudo apt-get update
+sudo apt-get install dpkg-dev debhelper
+```
+
+(install dependencies for this package - will receive error if not)
+
+```console
+sudo apt-get install apache2 php mariadb-server libxml2-utils xmlstarlet imagemagick ffmpeg libmp3lame0 pandoc texlive-latex-base texlive-fonts-recommended texlive-latex-recommended
+```
+
 ```console
 git clone https://github.com/inkVerb/501webapp.git
-cd 501webapp/deb
+cd 501webapp/deb/build
+sudo dpkg-buildpackage -us -uc
+cd debian
 dpkg-deb --build 501webapp
 sudo dpkg -i 501webapp.deb
 ```
 
 | **RedHat/CentOS** :$ (& Fedora)
 
+(install build tools if not already)
+
 ```console
-git clone https://github.com/inkVerb/501webapp.git
 sudo dnf update
 sudo dnf install rpm-build rpmdevtools
+```
+
+(dependency packages may not be available on RedHat distro repos; package will not install)
+
+```console
+git clone https://github.com/inkVerb/501webapp.git
 cp -rf 501webapp/rpm/rpmbuild ~/
 rpmbuild -ba ~/rpmbuild/SPECS/501webapp.spec
 ls ~/rpmbuild/RPMS/noarch/
@@ -68,11 +90,23 @@ rm -rf ~/rpmbuild
 
 | **OpenSUSE** :$ (& Tumbleweed)
 
+(install build tools if not already)
+
+```console
+sudo zypper update
+sudo zypper install rpm-build rpmdevtools
+```
+
+(install dependencies for this package - will receive error if not)
+
+```console
+sudo zypper update
+sudo zypper install httpd php mariadb libxml2 xmlstarlet ImageMagick ffmpeg lame pandoc texlive-scheme-full
+```
+
 ```console
 git clone https://github.com/inkVerb/501webapp.git
 cd 501webapp/rpm
-sudo zypper update
-sudo zypper install rpm-build rpmdevtools
 cp -r rpmbuild ~/
 rpmbuild -ba ~/rpmbuild/SPECS/501webapp.spec
 ls ~/rpmbuild/RPMS/noarch/
@@ -219,6 +253,14 @@ post_install() {
 #}
 ```
 
+...the above `structure.install` file would work just the same if it only contained...
+
+```
+post_install() {
+  echo "See README.md inside the 501/ directory for further install instructions
+}
+```
+
 - You will need to have certain dependencies installed even before building the package
   - These should already be installed from [Linux 501](https://github.com/inkVerb/VIP/blob/master/501/README.md), but are here for reference if needed
 
@@ -273,52 +315,124 @@ sudo pacman -R 501webapp
 
 ```
 deb/
-└─ 501webapp/
-   └─ DEBIAN/
+└─ build/
+   └─ debian/
       ├─ control
       ├─ conffiles
       ├─ preinst
       ├─ postinst
       ├─ prerm
-      └─ postrm
+      ├─ postrm
+      ├─ compat
+      ├─ changelog
+      ├─ copyright
+      ├─ install
+      └─ rules
 ```
 
-- Create directories: `deb/501webapp/DEBIAN`
-- In `DEBIAN/` create file: `control`
+#### Create Mainainer Package Director Structure
+- Create directories: `deb/build/debian`
+- In `debian/` create file: `control`
 
-| **`deb/501webapp/DEBIAN/control`** :
+| **`deb/build/debian/control`** :
 
 ```
-Package: 501webapp
-Version: 1.0.0
+Source: 501webapp
 Section: web
 Priority: optional
-Architecture: all
 Maintainer: Ink Is A Verb <codes@inkisaverb.com>
+Homepage: https://github.com/inkverb/501webapp
+Vcs-Git: https://github.com/inkverb/501
+Build-Depends: debhelper (>= 10)
+Standards-Version: 3.9.6
+
+Package: 501webapp
+#Version: 1.0.0 # No! Inherited from `debian/changelog`
+Architecture: all
 Depends: bash (>= 4.0), apache2, php, mariadb-server, libxml2-utils, xmlstarlet, imagemagick, ffmpeg, libmp3lame0, pandoc, texlive-latex-base, texlive-fonts-recommended, texlive-latex-recommended
-Build-Depends: git
 Description: The VIP Code 501 CMS web app-as-package
 ```
 
-- In `DEBIAN/` create file: `conffiles`
+- In `debian/` create file: `conffiles`
+  - This file technically isn't needed because all files in `etc/` are automatically included as `conffiles`; this is here for example
 
-| **`deb/501webapp/DEBIAN/conffiles`** :
+| **`deb/build/debian/conffiles`** :
 
 ```
 /etc/501webapp/in.conf.php
-/etc/501webapp/blog_db.sql
 ```
 
-- In `DEBIAN/` create file: `preinst`
-  - Make it executable with :$ `chmod +x DEBIAN/preinst`
+- In `debian/` create file: `preinst`
+  - Make it executable with :$ `chmod +x debian/preinst`
 
-| **`deb/501webapp/DEBIAN/preinst`** :
+| **`deb/build/debian/preinst`** :
 
 ```
 #!/bin/bash
 
 # exit from any errors
 set -e
+
+# Verify web user and folder & create any needed symlink
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+  mkdir -p "/var/"
+  ln -sfn "/srv/www" "/var/"
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+else
+  mkdir -p "/var/www"
+  webdir="/var/www"
+fi
+
+# Clear any existing conf link in /var/www
+rm -f ${webdir}/501/in.conf.php
+```
+
+- In `debian/` create file: `postinst`
+  - Make it executable with :$ `chmod +x debian/postinst`
+  - We want the database and web directory addressed here, *after* the dependency checks during install
+
+| **`deb/build/debian/postinst`** :
+
+```
+#!/bin/bash
+
+# exit from any errors
+set -e
+
+# Determine web user and folder
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+else
+  echo "No web folder found."
+  exit 1
+fi
+
+# Make sure the SQL server is running
+systemctl start mariadb
+
+# Export the current database
+mkdir -p /var/501webapp
+rm -f /var/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
+ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
+
+# Web directory structure
+cd ${webdir}/501
+mv htaccess .htaccess
+mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
+
+# Re-link conf file from /etc
+rm -f ${webdir}/501/in.conf.php
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
+
+# Own web directory
+chown -R $webuser:$webuser ${webdir}/501
 
 # Create the database
 mariadb -e "
@@ -327,72 +441,23 @@ GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'b
 FLUSH PRIVILEGES;"
 ```
 
-- In `DEBIAN/` create file: `postinst`
-  - Make it executable with :$ `chmod +x DEBIAN/postinst`
+- In `debian/` create file: `prerm`
+  - Make it executable with :$ `chmod +x debian/prerm`
 
-| **`deb/501webapp/DEBIAN/postinst`** :
-
-```
-#!/bin/bash
-
-# exit from any errors
-set -e
-
-# Build (git clone)
-rm -rf /tmp/501
-git clone https://github.com/inkVerb/501 /tmp/501
-
-# Determine web user and folder
-webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
-if [ -d "/srv/www" ]; then
-  webdir="/srv/www"
-elif [ -d "/var/www" ]; then
-  webdir="/var/www"
-else
-  echo "No web folder found."
-  exit 1
-fi
-
-# Move proper folder into place
-mkdir -p ${webdir}/501
-mv /tmp/501/cms/* ${webdir}/501/
-rm -rf /tmp/501
-
-# Protect the config file
-mv ${webdir}/501/in.conf.php /etc/501webapp/
-ln -s /etc/501webapp/in.conf.php ${webdir}/501/
-
-# Export the current database
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /etc/501webapp/blog_db.sql
-
-# Web directory structure
-cd ${webdir}/501
-mv htaccess .htaccess
-mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
-
-# Own web directory
-chown -R $webuser:$webuser ${webdir}/501
-```
-
-- In `DEBIAN/` create file: `prerm`
-  - Make it executable with :$ `chmod +x DEBIAN/prerm`
-
-| **`deb/501webapp/DEBIAN/prerm`** :
+| **`deb/build/debian/prerm`** :
 
 ```
 #!/bin/bash
 set -e
 
-# Dump database
-rm -f /etc/${pkgname}/blog_db.sql
-mariadbdump blog_db > /etc/${pkgname}/blog_db.sql
+# Example of something
+echo "Removing the 501 web app..."
 ```
 
-- In `DEBIAN/` create file: `postrm`
-  - Make it executable with :$ `chmod +x DEBIAN/postrm`
+- In `debian/` create file: `postrm`
+  - Make it executable with :$ `chmod +x debian/postrm`
 
-| **`deb/501webapp/DEBIAN/postrm`** :
+| **`deb/build/debian/postrm`** :
 
 ```
 #!/bin/bash
@@ -400,23 +465,149 @@ set -e
 
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
-if [ -d "/srv/www" ]; then
+if [ -d "/srv/www/501" ]; then
   webdir="/srv/www"
-elif [ -d "/var/www" ]; then
+  # Remove /var/www only if it is a symlink
+  [ -L "/var/www" ] && rm "/var/www"
+elif [ -d "/var/www/501" ]; then
   webdir="/var/www"
 else
   echo "No web folder found."
-  exit 1
+  exit 0
 fi
+
+# Make sure the SQL server is running
+systemctl start mariadb
 
 # Drop database on purge
 if [ "$1" = "purge" ]; then
   rm -rf ${webdir}/501
+  rm -rf /etc/501webapp
+  rm -rf /var/501webapp
   mariadb -e "
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
   DROP DATABASE IF EXISTS blog_db;
   FLUSH PRIVILEGES;"
+else
+  # Dump database on simple remove
+  mkdir -p /var/501webapp
+  rm -f /var/501webapp/blog_db.sql
+  mariadb-dump blog_db > /var/501webapp/blog_db.sql
+  ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 fi
+```
+
+- In `debian/` create file: `compat`
+
+| **`deb/build/debian/compat`** : (`debhelper` minimum version)
+
+```
+10
+```
+
+- In `debian/` create file: `changelog`
+
+| **`deb/build/debian/changelog`** : (optional, for listing changes)
+
+```
+501webapp (1.0.0-1) stable; urgency=low
+
+  * First release
+
+ -- Ink Is A Verb <codes@inkisaverb.com>  Thu, 1 Jan 1970 00:00:00 +0000
+```
+
+- In `debian/` create file: `copyright`
+
+| **`deb/build/debian/copyright`** : (optional, may be legally wise)
+
+```
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: 501webapp
+Source: https://github.com/inkverb/501webapp
+
+Files: *
+Copyright: 2024, Ink Is A Verb <codes@inkisaverb.com>
+License: GPL-3+
+```
+
+- In `debian/` create file: `rules`
+  - Make it executable with :$ `chmod +x debian/rules`
+
+| **`deb/build/debian/rules`** : (build, but no compiled binaries)
+
+```
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	git clone https://github.com/inkVerb/501
+```
+
+- In `debian/` create file: `install`
+
+| **`deb/build/debian/install`** : (places files in the `.deb` directory structure)
+
+```
+501/cms/* var/www/501/
+501/cms/in.conf.php etc/501webapp/
+```
+
+#### Build the Package Directories
+- Install the `dpkg-dev` & `debhelper` packages
+
+| **Install Debian `dpkg-dev` package** :$
+
+```console
+sudo apt-get update
+sudo apt-get install dpkg-dev debhelper
+```
+
+- Prepare package builder:
+  - Navigate to directory `deb/build/`
+  - Run this, then the package builder & repo packages will be created:
+
+| **Prepare the Debian package builder** :$
+
+```console
+sudo dpkg-buildpackage -us -uc  # Create the package builder
+```
+
+- Note what just happened
+  - Everything just done to this point is called "**maintainer**" work in the Debian world
+  - Basic repo packages *and also* the package `DEBIAN/` builder structure were greated
+  - At this point, one could navigate up one directory to `deb/` and run `sudo dpkg -i 501webapp_1.0.0-1_all.deb` and the package would be installed, *but we won't do this*
+  - Once installed with `sudo dpkg -i` (later) this can be removed the standard way with `sudo apt-get remove 501webapp`
+  - This is the new, just-created directory structure for the standard Debian package builder:
+
+| **`deb/build/debian/`** :
+
+```
+deb/build/debian/
+          └─ 501webapp/
+             ├─ DEBIAN/
+             │  ├─ control
+             │  ├─ conffiles
+             │  ├─ md5sums
+             │  ├─ preinst
+             │  ├─ postinst
+             │  ├─ prerm
+             │  └─ postrm
+             ├─ etc/
+             │  └─ 501webapp/
+             │     └─ in.conf.php
+             ├─ usr/
+             │  └─ share/
+             │     └─ doc/
+             │        └─ 501webapp/
+             │           ├─ changelog.Debian.gz
+             │           └─ copyright
+             └─ var/
+                └─ www/
+                   └─ 501/
+                      └─ [ files from 501/cms/* ]
 ```
 
 - You will need to have certain dependencies installed even before building the package
@@ -429,7 +620,7 @@ sudo apt-get install apache2 php mariadb-server libxml2-utils xmlstarlet imagema
 ```
 
 - Build package:
-  - Navigate to directory `deb/`
+  - Navigate to directory `deb/debian/`
   - Run this, then the package will be built, then installed:
 
 | **Build, *then* install Debian package** :$
@@ -441,10 +632,21 @@ sudo dpkg -i 501webapp.deb  # Install the package
 
 - Special notes about Debian
   - The directory of the package files (`501webapp/`) will be the same as the package installer's `.deb` basename
+  - Debian is unique offering `--purge`, making it both convenient and dangerous
+    - The web app folder `/var/www/501/` remains after package removal, only deleted with a purge (which uses `postrm`)
+    - That folder and its files do not reside inside the package, so they are not included in a remove operation, but only are removed with `--purge`-activated scripts
+    - The workflow must be carefully selected; one error in an `install` or `remove` operation and the package will `exit` unfinished, then the system is stuck with a problem
+      - Install will run the dependency checks via `Depends:` in `control`
+      - Scripts `preinst` & `prerm` run *before* the install/uninstall
+      - Scripts `postinst` & `postrm` run *after* the install/uninstall
+      - Do things in those scripts before or after in the proper stack of dependency
+    - If written wrong...
+      - These scripts can cause serious errors, they can delete the `/var` or `/etc` directories, or do catastrophic damage
+      - A mild `E:` error may be fixable with this :$
+        - `sudo dpkg --remove --force-all 501webapp && sudo apt-get update`
+      - This is why Arch runs scripts only as `chroot`, limiting `remove` vs `--purge` cabability, to prevent a faulty uninstall script from causing catastrophic damage
   - The package installer will appear at `501webapp.deb` in the same directory as (`501webapp/`) regardless of the PWD from where the `dpkg-deb --build` command was run
     - For `deb/501webapp` it will be at `deb/501webapp.deb`
-  - The web app folder `/var/www/501/` remains after package removal, only deleted with a purge (which uses `postrm`)
-    - That folder and its files do not reside inside the package, so they are not included in a remove operation
     - Workflow of `dpkg`:
       1. Files residing inside the package are automatically put in place (actual installation)
         - There is no script that defines or lists these, only the directory structure, such as `usr/...` or `etc/...` inside the package directory, in this case `deb/501webapp/`, which has no such resident contents
@@ -509,12 +711,23 @@ Other commands could go here...
 # We could put some commands here if we needed to build from source
 
 %pre
-if [ $1 -eq 0 ]; then
-  # Create the database
-  mariadb -e "
-  CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-  GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
-  FLUSH PRIVILEGES;"
+# Verify web user and folder & create any needed symlink
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/var/www" ]; then
+  webdir="/var/www"
+  mkdir -p "/srv/"
+  ln -sfn "/var/www" "/var/"
+elif [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+else
+  mkdir -p "/srv/www"
+  webdir="/srv/www"
+fi
+
+# Check if conf file already exists, then save
+if [ -f "${webdir}/501/in.conf.php" ]; then
+  mkdir ${webdir}/501.tmp
+  mv ${webdir}/501/in.conf.php ${webdir}/501.tmp/
 fi
 
 %install
@@ -542,20 +755,40 @@ mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
 rm -rf /tmp/501
 
-# Export the current database
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /etc/501webapp/blog_db.sql
-
 # Set up the web directory
 cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
+
+# Move any saved conf file back into place
+if [ -f "${webdir}/501.tmp/in.conf.php" ]; then
+  mkdir ${webdir}/501.tmp
+  mv ${webdir}/501.tmp/in.conf.php ${webdir}/501/
+fi
+if [ -d "${webdir}/501.tmp" ]; then
+  rm -f ${webdir}/501.tmp
+fi
+
+# Own web directory
 chown -R $webuser:$webuser ${webdir}/501
+
+# Make sure the SQL server is running
+systemctl start mariadb
+
+# Create the database
+mariadb -e "
+CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
+FLUSH PRIVILEGES;"
+
+# Export the current database (such as upgrade)
+mkdir -p /var/501webapp
+rm -f /etc/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
 
 %preun
 if [ $1 -eq 0 ]; then
-  rm -f /etc/501webapp/blog_db.sql
-  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+  echo "Uninstalling 501 web app..."
 fi
 
 %postun
@@ -564,12 +797,19 @@ if [ $1 -eq 0 ]; then
   webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
   if [ -d "/srv/www" ]; then
     webdir="/srv/www"
+    # Remove /var/www only if it is a symlink
+    [ -L "/var/www" ] && rm "/var/www"
   elif [ -d "/var/www" ]; then
     webdir="/var/www"
   else
     echo "No web folder found, attempting uninstall anyway."
   fi
   rm -rf ${webdir}/501
+  rm -rf /etc/501webapp
+  rm -rf /var/501webapp
+
+  # Make sure the SQL server is running before dropping database
+  systemctl start mariadb
   mariadb -e "
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
   DROP DATABASE IF EXISTS blog_db;
@@ -580,12 +820,11 @@ fi
 # None, since we are doing everything under %post
 
 %config(noreplace)
-/etc/501webapp/in.conf.php
-/etc/501webapp/blog_db.sql
+# Can't put this conf file here because it is not under %files
+#/etc/501webapp/in.conf.php
 
 %changelog
--------------------------------------------------------------------
-Thu Jan 01 00:00:00 UTC 1970 codes@inkisaverb.com
+* Thu Jan 01 1970 Ink Is A Verb <codes@inkisaverb.com> - 1.0.0-1
 - Something started, probably with v1.0.0
 ```
 
@@ -656,9 +895,7 @@ sudo rpm -i ~/rpmbuild/RPMS/noarch/501webapp-1.0.0-1.noarch.rpm  # Install the p
   - The web app folder `/srv/www/501/` remains after package removal
     - That folder and its files do not reside inside the package, so they are not included in a remove operation
     - The `501` directory was copied after a `git clone` under `%post`
-  - The `%changelog` is for OpenSUSE's `zypper`
-    - RedHat/CentOS will want the date line like this:
-      - `* Thu Jan 01 1970 Ink Is A Verb <codes@inkisaverb.com> - 1.0.0-1`
+  - If you get `changelog` or `bad date` error, then consider yourself normal
 
 | **Remove RedHat/CentOS package** :$ (optional)
 

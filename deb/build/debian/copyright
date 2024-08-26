@@ -1,0 +1,7 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: 501webapp
+Source: https://github.com/inkverb/501webapp
+
+Files: *
+Copyright: 2024, Ink Is A Verb <codes@inkisaverb.com>
+License: GPL-3+

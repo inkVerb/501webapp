@@ -62,7 +62,7 @@ package() {
   install -d "${pkgdir}/etc/${pkgname}"
   mv "${pkgdir}/${webdir}/501/in.conf.php" "${pkgdir}/etc/${pkgname}/"
   ln -s "/etc/${pkgname}/in.conf.php" "${pkgdir}/${webdir}/501/in.conf.php"
-  
+
   # Web directory structure
   cd "${pkgdir}/${webdir}/501"
   mv htaccess .htaccess
