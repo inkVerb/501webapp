@@ -772,6 +772,7 @@ fi
 chown -R $webuser:$webuser ${webdir}/501
 
 # Create the database
+systemctl start mariadb
 mariadb -e "
 CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
@@ -798,6 +799,7 @@ if [ $1 -eq 0 ]; then
   rm -rf ${webdir}/501
   rm -rf /etc/501webapp
   rm -rf /var/501webapp
+  systemctl start mariadb
   mariadb -e "
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
   DROP DATABASE IF EXISTS blog_db;
@@ -812,7 +814,6 @@ fi
 #/etc/501webapp/in.conf.php
 
 %changelog
--------------------------------------------------------------------
 * Thu Jan 01 1970 Ink Is A Verb <codes@inkisaverb.com> - 1.0.0-1
 - Something started, probably with v1.0.0
 ```
@@ -884,6 +885,7 @@ sudo rpm -i ~/rpmbuild/RPMS/noarch/501webapp-1.0.0-1.noarch.rpm  # Install the p
   - The web app folder `/srv/www/501/` remains after package removal
     - That folder and its files do not reside inside the package, so they are not included in a remove operation
     - The `501` directory was copied after a `git clone` under `%post`
+  - If you get `changelog` or `bad date` error, then consider yourself normal
 
 | **Remove RedHat/CentOS package** :$ (optional)
 
