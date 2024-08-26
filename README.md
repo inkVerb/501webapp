@@ -707,19 +707,22 @@ Other commands could go here...
 %pre
 # Verify web user and folder & create any needed symlink
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
-if [ -d "/srv/www" ]; then
+if [ -d "/var/www" ]; then
+  webdir="/var/www"
+  mkdir -p "/srv/"
+  ln -sfn "/var/www" "/var/"
+elif [ -d "/srv/www" ]; then
   webdir="/srv/www"
-  mkdir -p "/var/"
-  ln -sfn "/srv/www" "/var/"
-elif [ -d "/var/www" ]; then
-  webdir="/var/www"
 else
-  mkdir -p "/var/www"
-  webdir="/var/www"
+  mkdir -p "/srv/www"
+  webdir="/srv/www"
 fi
 
-# Clear any existing conf link in /var/www
-rm -f ${webdir}/501/in.conf.php
+# Check if conf file already exists, then save
+if [ -f "${webdir}/501/in.conf.php" ]; then
+  mkdir ${webdir}/501.tmp
+  mv ${webdir}/501/in.conf.php ${webdir}/501.tmp/
+fi
 
 %install
 # Everything is done post-install
@@ -756,9 +759,14 @@ cd ${webdir}/501
 mv htaccess .htaccess
 mkdir -p media/docs media/audio media/video media/images media/uploads media/original/images media/original/video media/original/audio media/original/docs media/pro
 
-# Re-link conf file from /etc
-rm -f ${webdir}/501/in.conf.php
-ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
+# Move any saved conf file back into place
+if [ -f "${webdir}/501.tmp/in.conf.php" ]; then
+  mkdir ${webdir}/501.tmp
+  mv ${webdir}/501.tmp/in.conf.php ${webdir}/501/
+fi
+if [ -d "${webdir}/501.tmp" ]; then
+  rm -f ${webdir}/501.tmp
+fi
 
 # Own web directory
 chown -R $webuser:$webuser ${webdir}/501
@@ -800,12 +808,12 @@ fi
 # None, since we are doing everything under %post
 
 %config(noreplace)
-/etc/501webapp/in.conf.php
-/etc/501webapp/blog_db.sql
+# Can't put this conf file here because it is not under %files
+#/etc/501webapp/in.conf.php
 
 %changelog
 -------------------------------------------------------------------
-Thu Jan 01 00:00:00 UTC 1970 codes@inkisaverb.com
+* Thu Jan 01 1970 Ink Is A Verb <codes@inkisaverb.com> - 1.0.0-1
 - Something started, probably with v1.0.0
 ```
 
@@ -876,9 +884,6 @@ sudo rpm -i ~/rpmbuild/RPMS/noarch/501webapp-1.0.0-1.noarch.rpm  # Install the p
   - The web app folder `/srv/www/501/` remains after package removal
     - That folder and its files do not reside inside the package, so they are not included in a remove operation
     - The `501` directory was copied after a `git clone` under `%post`
-  - The `%changelog` is for OpenSUSE's `zypper`
-    - RedHat/CentOS will want the date line like this:
-      - `* Thu Jan 01 1970 Ink Is A Verb <codes@inkisaverb.com> - 1.0.0-1`
 
 | **Remove RedHat/CentOS package** :$ (optional)
 
