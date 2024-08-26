@@ -1,8 +1,5 @@
 #!/bin/bash
 set -e
 
-# Dump database
-mkdir -p /var/501webapp
-rm -f /var/501webapp/blog_db.sql
-mariadb-dump blog_db > /var/501webapp/blog_db.sql
-ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
+# Example of something
+echo "Removing the 501 web app..."

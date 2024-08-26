@@ -61,15 +61,16 @@ mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
 rm -rf /tmp/501
 
-# Export the current database
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /etc/501webapp/blog_db.sql
-
 # Create the database
 mariadb -e "
 CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
 FLUSH PRIVILEGES;"
+
+# Export the current database (such as upgrade)
+mkdir -p /var/501webapp
+rm -f /etc/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
 
 # Set up the web directory
 cd ${webdir}/501
@@ -79,8 +80,7 @@ chown -R $webuser:$webuser ${webdir}/501
 
 %preun
 if [ $1 -eq 0 ]; then
-  rm -f /etc/501webapp/blog_db.sql
-  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+  echo "Uninstalling 501 web app..."
 fi
 
 %postun

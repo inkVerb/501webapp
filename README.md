@@ -53,6 +53,12 @@ sudo apt-get update
 sudo apt-get install dpkg-dev debhelper
 ```
 
+(install dependencies for this package - will receive error if not)
+
+```console
+sudo apt-get install apache2 php mariadb-server libxml2-utils xmlstarlet imagemagick ffmpeg libmp3lame0 pandoc texlive-latex-base texlive-fonts-recommended texlive-latex-recommended
+```
+
 ```console
 git clone https://github.com/inkVerb/501webapp.git
 cd 501webapp/deb/build
@@ -71,6 +77,8 @@ sudo dnf update
 sudo dnf install rpm-build rpmdevtools
 ```
 
+(dependency packages may not be available on RedHat distro repos; package will not install)
+
 ```console
 git clone https://github.com/inkVerb/501webapp.git
 cp -rf 501webapp/rpm/rpmbuild ~/
@@ -87,6 +95,13 @@ rm -rf ~/rpmbuild
 ```console
 sudo zypper update
 sudo zypper install rpm-build rpmdevtools
+```
+
+(install dependencies for this package - will receive error if not)
+
+```console
+sudo zypper update
+sudo zypper install httpd php mariadb libxml2 xmlstarlet ImageMagick ffmpeg lame pandoc texlive-scheme-full
 ```
 
 ```console
@@ -425,11 +440,8 @@ FLUSH PRIVILEGES;"
 #!/bin/bash
 set -e
 
-# Dump database
-mkdir -p /var/501webapp
-rm -f /var/501webapp/blog_db.sql
-mariadb-dump blog_db > /var/501webapp/blog_db.sql
-ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
+# Example of something
+echo "Removing the 501 web app..."
 ```
 
 - In `debian/` create file: `postrm`
@@ -463,6 +475,12 @@ if [ "$1" = "purge" ]; then
   DROP USER IF EXISTS 'blog_db_user'@'localhost';
   DROP DATABASE IF EXISTS blog_db;
   FLUSH PRIVILEGES;"
+else
+  # Dump database on simple remove
+  mkdir -p /var/501webapp
+  rm -f /var/501webapp/blog_db.sql
+  mariadb-dump blog_db > /var/501webapp/blog_db.sql
+  ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 fi
 ```
 
@@ -601,10 +619,17 @@ sudo dpkg -i 501webapp.deb  # Install the package
 
 - Special notes about Debian
   - The directory of the package files (`501webapp/`) will be the same as the package installer's `.deb` basename
+  - Debian is unique offering `--purge`, making it both convenient and dangerous
+    - The web app folder `/var/www/501/` remains after package removal, only deleted with a purge (which uses `postrm`)
+    - That folder and its files do not reside inside the package, so they are not included in a remove operation, but only are removed with `--purge`-activated scripts
+    - The workflow must be carefully selected; one error in an `install` or `remove` operation and the package will `exit` unfinished, then the system is stuck with a problem
+    - If written wrong...
+      - These scripts can cause serious errors, they can delete the `/var` or `/etc` directories, or do catastrophic damage
+      - A mild `E:` error may be fixable with this :$
+        - `sudo dpkg --remove --force-all 501webapp && sudo apt-get update`
+      - This is why Arch runs scripts only as `chroot`, limiting `remove` vs `--purge` cabability, to prevent a faulty uninstall script from causing catastrophic damage
   - The package installer will appear at `501webapp.deb` in the same directory as (`501webapp/`) regardless of the PWD from where the `dpkg-deb --build` command was run
     - For `deb/501webapp` it will be at `deb/501webapp.deb`
-  - The web app folder `/var/www/501/` remains after package removal, only deleted with a purge (which uses `postrm`)
-    - That folder and its files do not reside inside the package, so they are not included in a remove operation
     - Workflow of `dpkg`:
       1. Files residing inside the package are automatically put in place (actual installation)
         - There is no script that defines or lists these, only the directory structure, such as `usr/...` or `etc/...` inside the package directory, in this case `deb/501webapp/`, which has no such resident contents
@@ -707,15 +732,16 @@ mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
 rm -rf /tmp/501
 
-# Export the current database
-rm -f /etc/501webapp/blog_db.sql
-mariadb-dump blog_db > /etc/501webapp/blog_db.sql
-
 # Create the database
 mariadb -e "
 CREATE DATABASE IF NOT EXISTS blog_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 GRANT ALL PRIVILEGES ON blog_db.* TO 'blog_db_user'@'localhost' IDENTIFIED BY 'blogdbpassword';
 FLUSH PRIVILEGES;"
+
+# Export the current database (such as upgrade)
+mkdir -p /var/501webapp
+rm -f /etc/501webapp/blog_db.sql
+mariadb-dump blog_db > /var/501webapp/blog_db.sql
 
 # Set up the web directory
 cd ${webdir}/501
@@ -725,8 +751,7 @@ chown -R $webuser:$webuser ${webdir}/501
 
 %preun
 if [ $1 -eq 0 ]; then
-  rm -f /etc/501webapp/blog_db.sql
-  mariadb-dump blog_db > /etc/501webapp/blog_db.sql
+  echo "Uninstalling 501 web app..."
 fi
 
 %postun
