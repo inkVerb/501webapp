@@ -4,14 +4,33 @@
 set -e
 
 # Determine web user and folder
+systemctl start apache2
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
 else
-  echo "No web folder found."
-  exit 1
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
 fi
 
 # Make sure the SQL server is running

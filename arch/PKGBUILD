@@ -52,6 +52,21 @@ package() {
     echo "No web folder found."
     exit 1
   fi
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "/${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+    if id httpd; then
+      webuser="httpd"
+    elif id www; then
+      webuser="www"
+    elif id wwwrun; then
+      webuser="wwwrun"
+    elif id www-data; then
+      webuser="www-data"
+    else
+      webuser="root"
+    fi
+  fi
 
   # Move files in place
   #cd "${srcdir}/501" # We NO LONGER here from the build() function, must cd here again

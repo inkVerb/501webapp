@@ -24,16 +24,35 @@ Other commands could go here...
 
 %pre
 # Verify web user and folder & create any needed symlink
+systemctl start apache2 || systemctl start httpd
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/var/www" ]; then
   webdir="/var/www"
   mkdir -p "/srv/"
   ln -sfn "/var/www" "/var/"
-elif [ -d "/srv/www" ]; then
-  webdir="/srv/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
 else
-  mkdir -p "/srv/www"
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
   webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
 fi
 
 # Check if conf file already exists, then save
@@ -47,14 +66,33 @@ fi
 
 %post
 # Determine web user and folder
+systemctl start apache2 || systemctl start httpd
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
 else
-  echo "No web folder found."
-  exit 1
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
 fi
 
 # git clone
@@ -106,7 +144,6 @@ fi
 %postun
 if [ $1 -eq 0 ]; then
   # Determine web user and folder
-  webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
   if [ -d "/srv/www" ]; then
     webdir="/srv/www"
     # Remove /var/www only if it is a symlink
@@ -115,6 +152,8 @@ if [ $1 -eq 0 ]; then
     webdir="/var/www"
   else
     echo "No web folder found, attempting uninstall anyway."
+    mkdir "/srv/www"
+    webdir="/srv/www"
   fi
   rm -rf ${webdir}/501
   rm -rf /etc/501webapp
