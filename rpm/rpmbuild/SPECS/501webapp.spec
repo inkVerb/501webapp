@@ -56,9 +56,9 @@ else
 fi
 
 # Check if conf file already exists, then save
-if [ -f "${webdir}/501/in.conf.php" ]; then
+if [ -f "/etc/501webapp/in.conf.php" ]; then
   mkdir ${webdir}/501.tmp
-  mv ${webdir}/501/in.conf.php ${webdir}/501.tmp/
+  mv /etc/501webapp/in.conf.php ${webdir}/501.tmp/
 fi
 
 %install
@@ -103,6 +103,7 @@ git clone https://github.com/inkVerb/501 /tmp/501
 mv /tmp/501/cms ${webdir}/501
 mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
 rm -rf /tmp/501
 
 # Set up the web directory
@@ -112,8 +113,7 @@ mkdir -p media/docs media/audio media/video media/images media/uploads media/ori
 
 # Move any saved conf file back into place
 if [ -f "${webdir}/501.tmp/in.conf.php" ]; then
-  mkdir ${webdir}/501.tmp
-  mv ${webdir}/501.tmp/in.conf.php ${webdir}/501/
+  mv ${webdir}/501.tmp/in.conf.php /etc/501webapp/
 fi
 if [ -d "${webdir}/501.tmp" ]; then
   rm -f ${webdir}/501.tmp
