@@ -24,11 +24,16 @@ Other commands could go here...
 
 %pre
 # Verify web user and folder & create any needed symlink
+<<<<<<< HEAD
+=======
+systemctl start apache2 || systemctl start httpd
+>>>>>>> devel
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/var/www" ]; then
   webdir="/var/www"
   mkdir -p "/srv/"
   ln -sfn "/var/www" "/var/"
+<<<<<<< HEAD
 elif [ -d "/srv/www" ]; then
   webdir="/srv/www"
 else
@@ -40,6 +45,37 @@ fi
 if [ -f "${webdir}/501/in.conf.php" ]; then
   mkdir ${webdir}/501.tmp
   mv ${webdir}/501/in.conf.php ${webdir}/501.tmp/
+=======
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
+else
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
+fi
+
+# Check if conf file already exists, then save
+if [ -f "/etc/501webapp/in.conf.php" ]; then
+  mkdir ${webdir}/501.tmp
+  mv /etc/501webapp/in.conf.php ${webdir}/501.tmp/
+>>>>>>> devel
 fi
 
 %install
@@ -47,14 +83,33 @@ fi
 
 %post
 # Determine web user and folder
+systemctl start apache2 || systemctl start httpd
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
 else
-  echo "No web folder found."
-  exit 1
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
 fi
 
 # git clone
@@ -65,6 +120,7 @@ git clone https://github.com/inkVerb/501 /tmp/501
 mv /tmp/501/cms ${webdir}/501
 mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
 rm -rf /tmp/501
 
 # Set up the web directory
@@ -74,8 +130,12 @@ mkdir -p media/docs media/audio media/video media/images media/uploads media/ori
 
 # Move any saved conf file back into place
 if [ -f "${webdir}/501.tmp/in.conf.php" ]; then
+<<<<<<< HEAD
   mkdir ${webdir}/501.tmp
   mv ${webdir}/501.tmp/in.conf.php ${webdir}/501/
+=======
+  mv ${webdir}/501.tmp/in.conf.php /etc/501webapp/
+>>>>>>> devel
 fi
 if [ -d "${webdir}/501.tmp" ]; then
   rm -f ${webdir}/501.tmp
@@ -106,7 +166,6 @@ fi
 %postun
 if [ $1 -eq 0 ]; then
   # Determine web user and folder
-  webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
   if [ -d "/srv/www" ]; then
     webdir="/srv/www"
     # Remove /var/www only if it is a symlink
@@ -115,6 +174,8 @@ if [ $1 -eq 0 ]; then
     webdir="/var/www"
   else
     echo "No web folder found, attempting uninstall anyway."
+    mkdir "/srv/www"
+    webdir="/srv/www"
   fi
   rm -rf ${webdir}/501
   rm -rf /etc/501webapp

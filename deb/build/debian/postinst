@@ -4,6 +4,7 @@
 set -e
 
 # Determine web user and folder
+<<<<<<< HEAD
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
@@ -12,17 +13,49 @@ elif [ -d "/var/www" ]; then
 else
   echo "No web folder found."
   exit 1
+=======
+systemctl start apache2
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
+else
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
+>>>>>>> devel
 fi
 
 # Make sure the SQL server is running
 systemctl start mariadb
 
+<<<<<<< HEAD
 # Export the current database
 mkdir -p /var/501webapp
 rm -f /var/501webapp/blog_db.sql
 mariadb-dump blog_db > /var/501webapp/blog_db.sql
 ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 
+=======
+>>>>>>> devel
 # Web directory structure
 cd ${webdir}/501
 mv htaccess .htaccess

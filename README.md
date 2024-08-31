@@ -159,16 +159,27 @@ arch=('any')
 license=('GPL')
 depends=('bash' 'apache' 'php' 'mariadb' 'libxml2' 'xmlstarlet' 'imagemagick' 'ffmpeg' 'lame' 'pandoc' 'texlive-core' 'texlive-latex' 'texlive-fontsrecommended' 'texlive-latexrecommended')  # Apache becuase we use rewrites
 makedepends=('git')
-source=('git+https://github.com/inkVerb/501.git')
+source=("git+https://github.com/inkVerb/501.git")
+#source=('git+https://github.com/inkVerb/501.git')
+  # Git will clone to 501webapp/arch/501 (native repo name, unchanged)
+#source=("$pkgname::git+https://github.com/inkVerb/501.git") # Same as source=("501webapp::git+https://github.com/inkVerb/501.git")
+  # Git will clone to 501webapp/arch/$pkgname = 501webapp/arch/src/501webapp (new repo name, changed to $pkgname = 501webapp)
+# Using pkgname=501webapp, regardless of source=, the Git repo will move to arch/pkg/$pkgname
+  # $srcdir # Git packaged moves into this: 501webapp/arch/src/
+  # $pkgdir # Same as 501webapp/arch/pkg/501webapp # Where the installed package will go for prep to install to the system
+
 sha256sums=('SKIP')
-install=('structure.install')
+install='structure.install'
 # Preserve when uninstalled, delete when purged
-backup=("/etc/${pkgname}/in.conf.php" "/etc/${pkgname}/blog_db.sql")
+backup=("etc/${pkgname}/in.conf.php" "etc/${pkgname}/blog_db.sql")
 
 # Dynamically set pkgver= variable based on unique source versioning
 # Can go anywhere in PKGBUILD file, but usually variables are first, then functions after
+
 pkgver() {
-  cd "$pkgdir" # Same as "$srcdir/501"
+  # PWD is 501webapp/arch/
+  # Git will clone repo "501" here
+  cd $srcdir # Same as 501webapp/arch/src/
     ( set -o pipefail
       git describe --long --tags --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
       git describe --long --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
@@ -177,7 +188,8 @@ pkgver() {
 }
 
 build() {
-  cd "$pkgdir" # Same as "$srcdir/501"
+  cd "$srcdir" # Same as 501webapp/arch/src/
+  # Normally we could do something here, but this is only an example
 }
 
 package() {
@@ -191,17 +203,21 @@ package() {
     echo "No web folder found."
     exit 1
   fi
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
 
   # Move files in place
-  cd "$pkgdir" # Same as "$srcdir/501"
+  #cd "${srcdir}/501" # We NO LONGER here from the build() function, must cd here again
   install -d "${pkgdir}/${webdir}"
-  cp -r cms "${pkgdir}/${webdir}/501"
-  
+  cp -r "${srcdir}/501/cms" "${pkgdir}/${webdir}/501" # Using the final name 501 of where the webapp should reside
+
   # Protect the config file
   install -d "${pkgdir}/etc/${pkgname}"
   mv "${pkgdir}/${webdir}/501/in.conf.php" "${pkgdir}/etc/${pkgname}/"
   ln -s "/etc/${pkgname}/in.conf.php" "${pkgdir}/${webdir}/501/in.conf.php"
-  
+
   # Web directory structure
   cd "${pkgdir}/${webdir}/501"
   mv htaccess .htaccess
@@ -374,15 +390,45 @@ Description: The VIP Code 501 CMS web app-as-package
 set -e
 
 # Verify web user and folder & create any needed symlink
+<<<<<<< HEAD
+=======
+systemctl start apache2
+>>>>>>> devel
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
   mkdir -p "/var/"
   ln -sfn "/srv/www" "/var/"
+<<<<<<< HEAD
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
 else
   mkdir -p "/var/www"
+=======
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
+else
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
+>>>>>>> devel
   webdir="/var/www"
 fi
 
@@ -403,6 +449,7 @@ rm -f ${webdir}/501/in.conf.php
 set -e
 
 # Determine web user and folder
+<<<<<<< HEAD
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
@@ -411,17 +458,49 @@ elif [ -d "/var/www" ]; then
 else
   echo "No web folder found."
   exit 1
+=======
+systemctl start apache2
+webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
+if [ -d "/srv/www" ]; then
+  webdir="/srv/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
+else
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
+>>>>>>> devel
 fi
 
 # Make sure the SQL server is running
 systemctl start mariadb
 
+<<<<<<< HEAD
 # Export the current database
 mkdir -p /var/501webapp
 rm -f /var/501webapp/blog_db.sql
 mariadb-dump blog_db > /var/501webapp/blog_db.sql
 ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
 
+=======
+>>>>>>> devel
 # Web directory structure
 cd ${webdir}/501
 mv htaccess .htaccess
@@ -463,6 +542,7 @@ echo "Removing the 501 web app..."
 #!/bin/bash
 set -e
 
+<<<<<<< HEAD
 # Determine web user and folder
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www/501" ]; then
@@ -474,6 +554,19 @@ elif [ -d "/var/www/501" ]; then
 else
   echo "No web folder found."
   exit 0
+=======
+# Determine web folder
+if [ -d "/srv/www/501" ]; then
+  webdir="/srv/www"
+  # Remove /var/www only if it is a symlink
+  [ -L "/var/www" ] && rm "/var/www"
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+else
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+>>>>>>> devel
 fi
 
 # Make sure the SQL server is running
@@ -712,11 +805,16 @@ Other commands could go here...
 
 %pre
 # Verify web user and folder & create any needed symlink
+<<<<<<< HEAD
+=======
+systemctl start apache2 || systemctl start httpd
+>>>>>>> devel
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/var/www" ]; then
   webdir="/var/www"
   mkdir -p "/srv/"
   ln -sfn "/var/www" "/var/"
+<<<<<<< HEAD
 elif [ -d "/srv/www" ]; then
   webdir="/srv/www"
 else
@@ -728,6 +826,37 @@ fi
 if [ -f "${webdir}/501/in.conf.php" ]; then
   mkdir ${webdir}/501.tmp
   mv ${webdir}/501/in.conf.php ${webdir}/501.tmp/
+=======
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
+elif [ -d "/var/www" ]; then
+  webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
+else
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
+fi
+
+# Check if conf file already exists, then save
+if [ -f "/etc/501webapp/in.conf.php" ]; then
+  mkdir ${webdir}/501.tmp
+  mv /etc/501webapp/in.conf.php ${webdir}/501.tmp/
+>>>>>>> devel
 fi
 
 %install
@@ -735,14 +864,33 @@ fi
 
 %post
 # Determine web user and folder
+systemctl start apache2 || systemctl start httpd
 webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
 if [ -d "/srv/www" ]; then
   webdir="/srv/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}")
+  fi
 elif [ -d "/var/www" ]; then
   webdir="/var/www"
+  if [ "$webuser" = "" ]; then
+    webuser=$(stat -c "%U" "${webdir}")
+    #webgroup=$(stat -c "%G" "${webdir}") # Not needed, but could work
+  fi
 else
-  echo "No web folder found."
-  exit 1
+  echo "No web folder found, attempting uninstall anyway."
+  mkdir "/srv/www"
+  webdir="/srv/www"
+  if id wwwrun; then
+    webuser="wwwrun"
+  elif id httpd; then
+    webuser="httpd"
+  elif id www-data; then
+    webuser="www-data"
+  else
+    webuser="root"
+  fi
 fi
 
 # git clone
@@ -753,6 +901,7 @@ git clone https://github.com/inkVerb/501 /tmp/501
 mv /tmp/501/cms ${webdir}/501
 mkdir -p /etc/501webapp
 mv ${webdir}/501/in.conf.php /etc/501webapp/
+ln -sfn /etc/501webapp/in.conf.php ${webdir}/501/
 rm -rf /tmp/501
 
 # Set up the web directory
@@ -762,8 +911,12 @@ mkdir -p media/docs media/audio media/video media/images media/uploads media/ori
 
 # Move any saved conf file back into place
 if [ -f "${webdir}/501.tmp/in.conf.php" ]; then
+<<<<<<< HEAD
   mkdir ${webdir}/501.tmp
   mv ${webdir}/501.tmp/in.conf.php ${webdir}/501/
+=======
+  mv ${webdir}/501.tmp/in.conf.php /etc/501webapp/
+>>>>>>> devel
 fi
 if [ -d "${webdir}/501.tmp" ]; then
   rm -f ${webdir}/501.tmp
@@ -794,7 +947,6 @@ fi
 %postun
 if [ $1 -eq 0 ]; then
   # Determine web user and folder
-  webuser=$(ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1)
   if [ -d "/srv/www" ]; then
     webdir="/srv/www"
     # Remove /var/www only if it is a symlink
@@ -803,6 +955,8 @@ if [ $1 -eq 0 ]; then
     webdir="/var/www"
   else
     echo "No web folder found, attempting uninstall anyway."
+    mkdir "/srv/www"
+    webdir="/srv/www"
   fi
   rm -rf ${webdir}/501
   rm -rf /etc/501webapp
