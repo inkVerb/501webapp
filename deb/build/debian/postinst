@@ -36,12 +36,6 @@ fi
 # Make sure the SQL server is running
 systemctl start mariadb
 
-# Export the current database
-mkdir -p /var/501webapp
-rm -f /var/501webapp/blog_db.sql
-mariadb-dump blog_db > /var/501webapp/blog_db.sql
-ln -sfn /var/501webapp/blog_db.sql /etc/501webapp/
-
 # Web directory structure
 cd ${webdir}/501
 mv htaccess .htaccess
